@@ -4,7 +4,7 @@
       flex-direction: column;
       align-items: center;
       padding: 16;
-      gap: 8;
+      gap: 6;
       background-color: rgba(0, 10, 21, 0.95);
       border-radius: 12;
       border-color: #00ffff;
@@ -13,7 +13,7 @@
     }
     .title { font-size: 20; color: #00ffff; }
     .section { font-size: 14; color: #ffaa00; margin-top: 4; }
-    .info { font-size: 12; color: #aaaaaa; }
+    .info { font-size: 11; color: #aaaaaa; }
     .btn {
       font-size: 14; color: #00ccaa;
       background-color: #001a22; padding: 6;
@@ -25,21 +25,21 @@
     <text class="title">HOW TO PLAY</text>
     <text class="section">Controls</text>
     <text class="info">Arrow keys or A/D to move</text>
-    <text class="info">Space to shoot</text>
-    <text class="info">P or Esc to pause</text>
+    <text class="info">Space to shoot | P/Esc to pause</text>
     <text class="section">VR Controls</text>
-    <text class="info">Right stick to move</text>
-    <text class="info">Trigger to shoot</text>
-    <text class="info">B button to pause</text>
+    <text class="info">Right stick to move | Trigger to shoot</text>
+    <text class="info">B to pause | Y to pause (left)</text>
     <text class="section">Scoring</text>
-    <text class="info">Top row: 30 pts</text>
-    <text class="info">Mid row: 20 pts</text>
-    <text class="info">Bot row: 10 pts</text>
-    <text class="info">UFO: 50-300 pts</text>
-    <text class="info">Hit combos for multipliers!</text>
-    <text class="section">Boss Waves</text>
-    <text class="info">Every 5th wave has a boss!</text>
-    <text class="info">Bosses drop power-ups</text>
+    <text class="info">Top: 30 | Mid: 20 | Bot: 10 | UFO: 50-300</text>
+    <text class="info">Combos stack multipliers up to x4!</text>
+    <text class="section">Boss Waves (every 5th)</text>
+    <text class="info">STRIKER - Fast, aimed shots</text>
+    <text class="info">BOMBER - Wide spray + bomb drops</text>
+    <text class="info">FORTRESS - Heavy shields, tough</text>
+    <text class="info">Bosses drop guaranteed power-ups</text>
+    <text class="section">Difficulty</text>
+    <text class="info">Hard: Aimed bullets + double shots</text>
+    <text class="info">Easy: Slower bullets, wider gaps</text>
     <text class="btn" name="btn-tutorial-back">Back</text>
   </container>
 </panel>

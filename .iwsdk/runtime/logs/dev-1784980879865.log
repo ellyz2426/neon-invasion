@@ -1,0 +1,103 @@
+
+> neon-invasion@1.0.0 dev:runtime
+> vite
+
+🚀 Generating initial UIKitML files for dev server...
+👁️  UIKitML file watcher started - monitoring for changes...
+
+  VITE v7.3.6  ready in 1673 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://198.19.0.2:5173/
+🖥️  IWSDK: Using SwiftShader (software rendering) — no GPU detected
+12:02:27 PM [vite] (client) page reload src/game-system.ts
+12:02:36 PM [vite] (client) page reload src/game-system.ts
+12:02:44 PM [vite] (client) page reload src/game-system.ts
+12:02:57 PM [vite] (client) page reload src/game-system.ts
+12:03:18 PM [vite] (client) page reload src/game-system.ts
+12:03:33 PM [vite] (client) page reload src/game-system.ts
+12:04:01 PM [vite] (client) page reload src/game-system.ts
+12:04:12 PM [vite] (client) page reload src/game-system.ts
+12:04:28 PM [vite] (client) page reload src/game-system.ts
+12:04:41 PM [vite] (client) page reload src/game-system.ts
+12:04:51 PM [vite] (client) page reload src/game-system.ts
+12:05:11 PM [vite] (client) page reload src/game-system.ts
+12:05:19 PM [vite] (client) page reload src/environment-system.ts
+12:05:29 PM [vite] (client) page reload src/environment-system.ts
+12:05:38 PM [vite] (client) page reload src/environment-system.ts
+12:05:49 PM [vite] (client) page reload src/environment-system.ts
+12:05:58 PM [vite] (client) page reload src/game-system.ts
+12:06:04 PM [vite] (client) page reload src/game-system.ts
+12:06:11 PM [vite] (client) page reload src/game-system.ts
+12:06:21 PM [vite] (client) page reload src/game-system.ts
+12:06:31 PM [vite] (client) page reload src/game-system.ts
+12:06:37 PM [vite] (client) page reload src/game-system.ts
+[browser] [PanelUISystem] Error loading panel for entity 19: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 13: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 17: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 15: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 18: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 14: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 16: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=dff76b6a:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:250:25)
+    at http://localhost:5173/src/index.ts?t=1784981191574:40:10
+[browser] [PanelUISystem] Error loading panel for entity 11: TypeError: Failed to fetch
+[browser] [PanelUISystem] Error loading panel for entity 12: TypeError: Failed to fetch
+12:07:39 PM [vite] (client) page reload src/ui-system.ts
+12:07:46 PM [vite] (client) page reload src/game-system.ts
+12:07:51 PM [vite] (client) page reload src/game-system.ts
+12:08:11 PM [vite] (client) page reload src/game-system.ts
+12:08:20 PM [vite] (client) page reload src/game-system.ts
+12:08:31 PM [vite] (client) page reload src/ui-system.ts
+12:08:48 PM [vite] (client) page reload src/game-system.ts
+📝 UIKitML file change: ui/tutorial.uikitml
+✅ UIKitML file recompiled: tutorial.uikitml
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+
+
+🥽 IWSDK Dev Summary (Development):
+  - Device: metaQuest3
+  - Runtime injected: 1120.1KB
+  - Activation mode: localhost
+  - AI: agent mode (WebSocket at /__iwer_mcp)
+  - Note: Runtime only activates on localhost/local networks
+

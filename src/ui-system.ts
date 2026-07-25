@@ -215,11 +215,12 @@ export class UISystem extends createSystem({
       this.set('hud', 'powerup-val', '');
     }
 
-    // Boss HP indicator
+    // Boss HP indicator with variant name
     if (this.game.bossActive) {
       const filled = Math.ceil((this.game.bossHp / this.game.bossMaxHp) * 10);
       const bar = '|'.repeat(filled) + '.'.repeat(10 - filled);
-      this.set('hud', 'boss-val', `BOSS [${bar}]`);
+      const variantName = this.game.getBossVariantName();
+      this.set('hud', 'boss-val', `${variantName} [${bar}]`);
     } else {
       this.set('hud', 'boss-val', '');
     }
@@ -276,6 +277,7 @@ export class UISystem extends createSystem({
       'Marathon', '10 Games', 'Win Streak 3', 'Untouchable',
       'Power Up!', 'Power Hoarder', 'Bomb Expert', 'Boss Slayer', 'Boss Hunter',
       'Combo x15', 'Multiplier Max', 'Wave 15', 'Score 25000', 'Collector',
+      'Striker Down', 'Bomber Down', 'Fortress Breaker', 'Boss Trio', 'Hard Mode',
     ];
     const totalPages = Math.ceil(all.length / 10);
     const perPage = 10;

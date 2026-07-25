@@ -49,6 +49,12 @@ export class EnvironmentSystem extends createSystem({}) {
   private targetSecondary = new Color(0xff00ff);
   private themeLerp = 1;
 
+  // Floor glow pool
+  private floorGlow!: Mesh;
+
+  // Pillar caps
+  private pillarCaps: Mesh[] = [];
+
   init() {
     // Fog
     this.scene.fog = new Fog(0x000811, 8, 30);
@@ -103,6 +109,18 @@ export class EnvironmentSystem extends createSystem({}) {
     const floor = new Mesh(floorGeo, floorMat);
     floor.position.set(0, -0.01, 0);
     this.scene.add(floor);
+
+    // Floor glow pool — theme-reactive
+    const glowGeo = new CylinderGeometry(2.5, 2.5, 0.005, 32);
+    const glowMat = new MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.08,
+      blending: AdditiveBlending,
+    });
+    this.floorGlow = new Mesh(glowGeo, glowMat);
+    this.floorGlow.position.set(0, 0.02, 0);
+    this.scene.add(this.floorGlow);
 
     for (let x = -5; x <= 5; x++) {
       const geo = new BoxGeometry(0.005, 0.005, 8);
@@ -166,6 +184,7 @@ export class EnvironmentSystem extends createSystem({}) {
       const cap = new Mesh(capGeo, capMat);
       cap.position.y = 5;
       group.add(cap);
+      this.pillarCaps.push(cap);
 
       this.scene.add(group);
       this.pillars.push(group);
@@ -339,6 +358,35 @@ export class EnvironmentSystem extends createSystem({}) {
       this.currentSecondary.lerp(this.targetSecondary, this.themeLerp);
       this.mainLight.color.copy(this.currentPrimary);
       this.accentLight.color.copy(this.currentSecondary);
+
+      // Floor glow follows primary
+      if (this.floorGlow) {
+        (this.floorGlow.material as MeshBasicMaterial).color.copy(this.currentPrimary);
+      }
+
+      // Pillar caps follow primary
+      for (const cap of this.pillarCaps) {
+        (cap.material as MeshBasicMaterial).color.copy(this.currentPrimary);
+      }
+
+      // Ceiling lights alternate primary/secondary
+      for (let i = 0; i < this.ceilingLights.length; i++) {
+        const mat = this.ceilingLights[i].material as MeshBasicMaterial;
+        mat.color.copy(i % 2 === 0 ? this.currentPrimary : this.currentSecondary);
+      }
+    }
+
+    // Floor glow pulse
+    if (this.floorGlow) {
+      const glowMat = this.floorGlow.material as MeshBasicMaterial;
+      glowMat.opacity = 0.06 + Math.sin(time * 0.8) * 0.03;
+    }
+
+    // Pillar cap pulse with theme
+    for (let i = 0; i < this.pillarCaps.length; i++) {
+      const cap = this.pillarCaps[i];
+      const mat = cap.material as MeshBasicMaterial;
+      mat.opacity = 0.4 + Math.sin(time * 0.6 + i * 1.2) * 0.15;
     }
 
     // Comets

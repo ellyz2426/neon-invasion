@@ -218,7 +218,11 @@ export class GameSystem extends createSystem({}) {
   bossHp = 0;
   bossMaxHp = 0;
   totalBossKills = 0;
+  private lastBossVariantKilled: string | null = null;
   private bossKillsThisGame = 0;
+  private strikerKilled = false;
+  private bomberKilled = false;
+  private fortressKilled = false;
 
   // Achievements
   achievements: string[] = [];
@@ -238,6 +242,14 @@ export class GameSystem extends createSystem({}) {
   private invaderPulsePhase = 0;
   private deathAnimations: { mesh: Mesh; timer: number; startScale: number }[] = [];
 
+  // Wave entry animation
+  private entryAnimating = false;
+  private entryTimers: number[] = []; // per-row delay timers
+  private entryProgress: number[] = []; // per-row animation progress 0→1
+  private readonly ENTRY_ROW_DELAY = 0.12; // stagger per row
+  private readonly ENTRY_DURATION = 0.5; // seconds to fly in per row
+  private entryStartY = 6.0; // off-screen start Y position
+
   // Per-game tracking
   private shotsFired = 0;
   private shotsHit = 0;
@@ -254,6 +266,10 @@ export class GameSystem extends createSystem({}) {
   private bombsUsedThisGame = 0;
   bestCombo = 0;
   totalPowerUpsEver = 0;
+
+  // Invincibility frames
+  private iFrames = 0;
+  private iFrameFlashPhase = 0;
 
   // Wave transition
   waveTransitioning = false;
@@ -385,6 +401,8 @@ export class GameSystem extends createSystem({}) {
     this.waveTransitioning = false;
     this.waveTransitionTimer = 0;
     this.pendingWaveSpawn = false;
+    this.iFrames = 0;
+    this.iFrameFlashPhase = 0;
     if (this.boss?.active) {
       this.boss.active = false;
       this.boss.group.visible = false;
@@ -443,6 +461,22 @@ export class GameSystem extends createSystem({}) {
       }
     }
     this.aliensAlive = this.invaders.length;
+
+    // Start entry animation — hide all invaders above screen
+    this.entryAnimating = true;
+    this.entryTimers = [];
+    this.entryProgress = [];
+    for (let r = 0; r < ROWS; r++) {
+      this.entryTimers.push(r * this.ENTRY_ROW_DELAY);
+      this.entryProgress.push(0);
+    }
+    // Store target Y positions and start off-screen
+    for (const inv of this.invaders) {
+      inv.mesh.userData['targetY'] = inv.mesh.position.y;
+      inv.mesh.position.y = this.entryStartY;
+      inv.mesh.scale.setScalar(0.01);
+      (inv.mesh.material as MeshStandardMaterial).opacity = 0;
+    }
   }
 
   private getFormation(wave: number): number[][] {
@@ -876,11 +910,49 @@ export class GameSystem extends createSystem({}) {
     return this.wave % 5 === 0;
   }
 
+  private getBossVariant(): 'striker' | 'bomber' | 'fortress' {
+    const tier = Math.floor(this.wave / 5);
+    if (tier % 3 === 1) return 'striker';
+    if (tier % 3 === 2) return 'bomber';
+    return 'fortress';
+  }
+
+  private bossVariant: 'striker' | 'bomber' | 'fortress' = 'striker';
+  private bomberDropTimer = 0;
+
   private spawnBoss() {
     const tier = Math.floor(this.wave / 5);
-    const hp = 15 + tier * 5;
-    const speed = 0.8 + tier * 0.1;
-    const fireInterval = 2.5 - tier * 0.15;
+    this.bossVariant = this.getBossVariant();
+
+    // Variant-specific stats
+    let hp: number, speed: number, fireInterval: number;
+    switch (this.bossVariant) {
+      case 'striker':
+        hp = 12 + tier * 4;
+        speed = 1.2 + tier * 0.15; // Fast
+        fireInterval = 1.8 - tier * 0.12;
+        break;
+      case 'bomber':
+        hp = 20 + tier * 6;
+        speed = 0.5 + tier * 0.08; // Slow
+        fireInterval = 2.0 - tier * 0.1;
+        this.bomberDropTimer = 0;
+        break;
+      case 'fortress':
+      default:
+        hp = 25 + tier * 7;
+        speed = 0.7 + tier * 0.1;
+        fireInterval = 2.5 - tier * 0.15;
+        break;
+    }
+
+    // Color scheme per variant
+    const variantColors: Record<string, { body: number; glow: number; edge: number; shield: number; shieldEdge: number; wing: number }> = {
+      striker: { body: 0xff2200, glow: 0xff2200, edge: 0xff6600, shield: 0xff8800, shieldEdge: 0xffaa44, wing: 0xff4400 },
+      bomber: { body: 0x8800ff, glow: 0x8800ff, edge: 0xaa44ff, shield: 0xaa66ff, shieldEdge: 0xcc88ff, wing: 0x6600cc },
+      fortress: { body: 0x00ff88, glow: 0x00ff88, edge: 0x44ffaa, shield: 0x22cc66, shieldEdge: 0x66ffcc, wing: 0x00aa55 },
+    };
+    const vc = variantColors[this.bossVariant];
 
     if (!this.boss) {
       // Create boss geometry once
@@ -889,25 +961,30 @@ export class GameSystem extends createSystem({}) {
       // Central body — large glowing sphere
       const bodyGeo = new SphereGeometry(0.5, 12, 8);
       const bodyMat = new MeshStandardMaterial({
-        color: 0xff2200,
-        emissive: 0xff2200,
+        color: vc.body,
+        emissive: vc.glow,
         emissiveIntensity: 0.5,
         transparent: true,
         opacity: 0.9,
       });
       const bodyMesh = new Mesh(bodyGeo, bodyMat);
       const edgeGeo = new EdgesGeometry(bodyGeo);
-      const edges = new LineSegments(edgeGeo, new LineBasicMaterial({ color: 0xff6600 }));
+      const edges = new LineSegments(edgeGeo, new LineBasicMaterial({ color: vc.edge }));
       bodyMesh.add(edges);
       group.add(bodyMesh);
 
-      // Orbiting shield plates (3 rotating box shields)
+      // Orbiting shield plates (3 rotating box shields, fortress gets 5)
       const shieldMeshes: Mesh[] = [];
-      for (let i = 0; i < 3; i++) {
-        const shieldGeo = new BoxGeometry(0.25, 0.08, 0.1);
+      const shieldCount = this.bossVariant === 'fortress' ? 5 : 3;
+      for (let i = 0; i < shieldCount; i++) {
+        const shieldGeo = new BoxGeometry(
+          this.bossVariant === 'fortress' ? 0.3 : 0.25,
+          0.08,
+          0.1
+        );
         const shieldMat = new MeshStandardMaterial({
-          color: 0xff8800,
-          emissive: 0xff8800,
+          color: vc.shield,
+          emissive: vc.shield,
           emissiveIntensity: 0.4,
           transparent: true,
           opacity: 0.85,
@@ -915,18 +992,19 @@ export class GameSystem extends createSystem({}) {
         const shieldMesh = new Mesh(shieldGeo, shieldMat);
         const shieldEdges = new LineSegments(
           new EdgesGeometry(shieldGeo),
-          new LineBasicMaterial({ color: 0xffaa44 })
+          new LineBasicMaterial({ color: vc.shieldEdge })
         );
         shieldMesh.add(shieldEdges);
         group.add(shieldMesh);
         shieldMeshes.push(shieldMesh);
       }
 
-      // Wing extensions
-      const wingGeo = new BoxGeometry(0.6, 0.04, 0.2);
+      // Wing extensions — bomber gets wider wings
+      const wingW = this.bossVariant === 'bomber' ? 0.8 : 0.6;
+      const wingGeo = new BoxGeometry(wingW, 0.04, 0.2);
       const wingMat = new MeshStandardMaterial({
-        color: 0xff4400,
-        emissive: 0xff4400,
+        color: vc.wing,
+        emissive: vc.wing,
         emissiveIntensity: 0.3,
       });
       const wingL = new Mesh(wingGeo, wingMat);
@@ -955,7 +1033,7 @@ export class GameSystem extends createSystem({}) {
         active: true,
       };
     } else {
-      // Reuse existing boss
+      // Reuse existing boss — update stats and variant colors
       this.boss.hp = hp;
       this.boss.maxHp = hp;
       this.boss.speed = speed;
@@ -966,13 +1044,19 @@ export class GameSystem extends createSystem({}) {
       this.boss.active = true;
       this.boss.group.position.set(0, 3.5, 0);
       this.boss.group.visible = true;
-      // Reset visuals
+      // Reset and recolor visuals
       const mat = this.boss.bodyMesh.material as MeshStandardMaterial;
       mat.opacity = 0.9;
       mat.emissiveIntensity = 0.5;
-      for (const sm of this.boss.shieldMeshes) {
+      mat.color.setHex(vc.body);
+      mat.emissive.setHex(vc.glow);
+      for (let si = 0; si < this.boss.shieldMeshes.length; si++) {
+        const sm = this.boss.shieldMeshes[si];
         sm.visible = true;
-        (sm.material as MeshStandardMaterial).opacity = 0.85;
+        const sMat = sm.material as MeshStandardMaterial;
+        sMat.opacity = 0.85;
+        sMat.color.setHex(vc.shield);
+        sMat.emissive.setHex(vc.shield);
       }
     }
     this.bossActive = true;
@@ -984,23 +1068,30 @@ export class GameSystem extends createSystem({}) {
   private updateBoss(delta: number, time: number) {
     if (!this.boss || !this.boss.active) return;
 
-    // Move side to side
+    // Move side to side — striker moves faster with slight vertical oscillation
     this.boss.group.position.x += this.boss.dir * this.boss.speed * delta;
+    if (this.bossVariant === 'striker') {
+      this.boss.group.position.y = 3.5 + Math.sin(time * 2) * 0.3;
+    }
     if (Math.abs(this.boss.group.position.x) > 3.0) {
       this.boss.dir *= -1;
       this.boss.group.position.x = Math.sign(this.boss.group.position.x) * 3.0;
     }
 
     // Rotate shield plates around body
-    for (let i = 0; i < this.boss.shieldMeshes.length; i++) {
-      const angle = time * 1.5 + (i * Math.PI * 2 / 3);
-      const radius = 0.7;
-      this.boss.shieldMeshes[i].position.set(
+    const shieldCount = this.boss.shieldMeshes.length;
+    for (let i = 0; i < shieldCount; i++) {
+      const sm = this.boss.shieldMeshes[i];
+      if (!sm.visible) continue;
+      const rotSpeed = this.bossVariant === 'fortress' ? 1.0 : 1.5;
+      const angle = time * rotSpeed + (i * Math.PI * 2 / shieldCount);
+      const radius = this.bossVariant === 'fortress' ? 0.85 : 0.7;
+      sm.position.set(
         Math.cos(angle) * radius,
         Math.sin(angle) * radius * 0.3,
         Math.sin(angle) * radius * 0.2
       );
-      this.boss.shieldMeshes[i].rotation.z = angle;
+      sm.rotation.z = angle;
     }
 
     // Boss body pulsing
@@ -1012,7 +1103,11 @@ export class GameSystem extends createSystem({}) {
       mat.color.setHex(0xffffff);
     } else {
       mat.emissiveIntensity = pulse;
-      mat.color.setHex(0xff2200);
+      // Restore variant color
+      const variantBodyColors: Record<string, number> = {
+        striker: 0xff2200, bomber: 0x8800ff, fortress: 0x00ff88,
+      };
+      mat.color.setHex(variantBodyColors[this.bossVariant] || 0xff2200);
     }
 
     // Boss firing
@@ -1022,15 +1117,25 @@ export class GameSystem extends createSystem({}) {
       this.fireBossBullets();
     }
 
+    // Bomber-specific: periodic bomb drops (slow falling large projectiles)
+    if (this.bossVariant === 'bomber') {
+      this.bomberDropTimer += delta;
+      if (this.bomberDropTimer >= 3.0) {
+        this.bomberDropTimer = 0;
+        this.dropBomberBomb();
+      }
+    }
+
     // Remove shield visuals as HP drops
     const hpFrac = this.boss.hp / this.boss.maxHp;
-    if (hpFrac < 0.33 && this.boss.shieldMeshes[2].visible) {
-      this.boss.shieldMeshes[2].visible = false;
-      this.effects?.burst(this.boss.group.position.clone(), 0xff8800, 10);
-    }
-    if (hpFrac < 0.66 && this.boss.shieldMeshes[1].visible) {
-      this.boss.shieldMeshes[1].visible = false;
-      this.effects?.burst(this.boss.group.position.clone(), 0xff8800, 10);
+    const totalShields = this.boss.shieldMeshes.length;
+    // Lose shields proportionally as HP drops
+    for (let si = totalShields - 1; si >= 0; si--) {
+      const threshold = (si + 1) / (totalShields + 1);
+      if (hpFrac < threshold && this.boss.shieldMeshes[si].visible) {
+        this.boss.shieldMeshes[si].visible = false;
+        this.effects?.burst(this.boss.group.position.clone(), 0xff8800, 10);
+      }
     }
   }
 
@@ -1038,21 +1143,88 @@ export class GameSystem extends createSystem({}) {
     if (!this.boss) return;
     const bossPos = this.boss.group.position;
 
-    // Fire 3-way spread
-    const angles = [-0.3, 0, 0.3];
-    for (const angle of angles) {
-      const geo = new BoxGeometry(0.06, 0.16, 0.06);
-      const mat = new MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.9 });
-      const mesh = new Mesh(geo, mat);
-      mesh.position.set(bossPos.x, bossPos.y - 0.5, bossPos.z);
-      this.scene.add(mesh);
-      this.enemyBullets.push({
-        mesh,
-        vel: new Vector3(Math.sin(angle) * ENEMY_BULLET_SPEED, -ENEMY_BULLET_SPEED, 0),
-        isPlayer: false,
-      });
+    switch (this.bossVariant) {
+      case 'striker': {
+        // Single accurate aimed shot at player
+        const dx = this.playerX - bossPos.x;
+        const dy = PLAYER_Y - bossPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const speed = ENEMY_BULLET_SPEED * 1.3;
+        const geo = new BoxGeometry(0.05, 0.2, 0.05);
+        const mat = new MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.9 });
+        const mesh = new Mesh(geo, mat);
+        mesh.position.set(bossPos.x, bossPos.y - 0.5, bossPos.z);
+        this.scene.add(mesh);
+        this.enemyBullets.push({
+          mesh,
+          vel: new Vector3((dx / dist) * speed, (dy / dist) * speed, 0),
+          isPlayer: false,
+        });
+        break;
+      }
+      case 'bomber': {
+        // Wide 5-way spray, slower bullets
+        const angles = [-0.5, -0.25, 0, 0.25, 0.5];
+        const speed = ENEMY_BULLET_SPEED * 0.8;
+        for (const angle of angles) {
+          const geo = new BoxGeometry(0.05, 0.12, 0.05);
+          const mat = new MeshBasicMaterial({ color: 0x8844ff, transparent: true, opacity: 0.9 });
+          const mesh = new Mesh(geo, mat);
+          mesh.position.set(bossPos.x, bossPos.y - 0.5, bossPos.z);
+          this.scene.add(mesh);
+          this.enemyBullets.push({
+            mesh,
+            vel: new Vector3(Math.sin(angle) * speed, -speed, 0),
+            isPlayer: false,
+          });
+        }
+        break;
+      }
+      case 'fortress':
+      default: {
+        // Standard 3-way spread
+        const angles = [-0.3, 0, 0.3];
+        for (const angle of angles) {
+          const geo = new BoxGeometry(0.06, 0.16, 0.06);
+          const mat = new MeshBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.9 });
+          const mesh = new Mesh(geo, mat);
+          mesh.position.set(bossPos.x, bossPos.y - 0.5, bossPos.z);
+          this.scene.add(mesh);
+          this.enemyBullets.push({
+            mesh,
+            vel: new Vector3(Math.sin(angle) * ENEMY_BULLET_SPEED, -ENEMY_BULLET_SPEED, 0),
+            isPlayer: false,
+          });
+        }
+        break;
+      }
     }
     this.audio?.playSound('bossShoot');
+  }
+
+  private dropBomberBomb() {
+    if (!this.boss || !this.boss.active) return;
+    const bossPos = this.boss.group.position;
+
+    // Large slow-falling bomb that explodes on impact at player Y level
+    const geo = new SphereGeometry(0.12, 8, 6);
+    const mat = new MeshBasicMaterial({
+      color: 0xaa44ff,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.set(bossPos.x, bossPos.y - 0.3, bossPos.z);
+    this.scene.add(mesh);
+
+    // Mark as bomb with userData
+    mesh.userData['isBomb'] = true;
+    this.enemyBullets.push({
+      mesh,
+      vel: new Vector3(0, -1.2, 0), // slow fall
+      isPlayer: false,
+    });
+    this.audio?.playSound('bomb');
   }
 
   private hitBoss() {
@@ -1074,11 +1246,19 @@ export class GameSystem extends createSystem({}) {
     this.boss.active = false;
     this.bossActive = false;
 
+    // Variant-specific explosion colors
+    const variantExpColors: Record<string, [number, number]> = {
+      striker: [0xff4400, 0xff8800],
+      bomber: [0x8844ff, 0xaa66ff],
+      fortress: [0x44ff88, 0x22cc66],
+    };
+    const [expColor1, expColor2] = variantExpColors[this.bossVariant] || [0xff4400, 0xff8800];
+
     // Big explosion
-    this.effects?.bigExplosion(this.boss.group.position.clone(), 0xff4400);
+    this.effects?.bigExplosion(this.boss.group.position.clone(), expColor1);
     this.effects?.bigExplosion(
       this.boss.group.position.clone().add(new Vector3(0.3, 0.2, 0)),
-      0xff8800
+      expColor2
     );
     this.effects?.shake(0.1, 0.5);
 
@@ -1087,6 +1267,12 @@ export class GameSystem extends createSystem({}) {
     this.score += bossPoints;
     this.bossKillsThisGame++;
     this.totalBossKills++;
+
+    // Track variant kills
+    this.lastBossVariantKilled = this.bossVariant;
+    if (this.bossVariant === 'striker') this.strikerKilled = true;
+    if (this.bossVariant === 'bomber') this.bomberKilled = true;
+    if (this.bossVariant === 'fortress') this.fortressKilled = true;
 
     // Guaranteed power-up drop
     const pos = this.boss.group.position.clone();
@@ -1119,8 +1305,8 @@ export class GameSystem extends createSystem({}) {
 
     this.audio?.playSound('bossDefeat');
 
-    // Flash ring effect for boss kill
-    this.effects?.flashRing(pos, 0xff4400, 2.0);
+    // Flash ring effect for boss kill — use variant color
+    this.effects?.flashRing(pos, expColor1, 2.0);
 
     // Advance wave after boss kill
     this.wave++;
@@ -1198,12 +1384,54 @@ export class GameSystem extends createSystem({}) {
     shooter.mesh.getWorldPosition(worldPos);
 
     const geo = new BoxGeometry(0.04, 0.14, 0.04);
-    const mat = new MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 });
-    const mesh = new Mesh(geo, mat);
-    mesh.position.copy(worldPos);
-    mesh.position.y -= 0.2;
-    this.scene.add(mesh);
-    this.enemyBullets.push({ mesh, vel: new Vector3(0, -ENEMY_BULLET_SPEED, 0), isPlayer: false });
+
+    // Difficulty-specific bullet behavior
+    let bulletVel: Vector3;
+    if (this.difficulty === 'hard' && Math.random() < 0.35) {
+      // Hard mode: 35% chance of aimed shots toward player
+      const dx = this.playerX - worldPos.x;
+      const dy = PLAYER_Y - worldPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const aimSpeed = ENEMY_BULLET_SPEED * 1.1;
+      bulletVel = new Vector3(
+        (dx / dist) * aimSpeed + (Math.random() - 0.5) * 0.3, // slight spread
+        (dy / dist) * aimSpeed,
+        0
+      );
+      // Aimed bullets are orange
+      const mat = new MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0.9 });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.copy(worldPos);
+      mesh.position.y -= 0.2;
+      this.scene.add(mesh);
+      this.enemyBullets.push({ mesh, vel: bulletVel, isPlayer: false });
+    } else {
+      // Normal straight-down bullets
+      const speed = this.difficulty === 'easy' ? ENEMY_BULLET_SPEED * 0.75 : ENEMY_BULLET_SPEED;
+      bulletVel = new Vector3(0, -speed, 0);
+      const mat = new MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.copy(worldPos);
+      mesh.position.y -= 0.2;
+      this.scene.add(mesh);
+      this.enemyBullets.push({ mesh, vel: bulletVel, isPlayer: false });
+    }
+
+    // Hard mode: occasionally fire a second bullet from another column
+    if (this.difficulty === 'hard' && this.wave >= 3 && Math.random() < 0.2 && bottomPerCol.length > 1) {
+      const secondShooter = bottomPerCol[Math.floor(Math.random() * bottomPerCol.length)];
+      if (secondShooter !== shooter) {
+        const pos2 = new Vector3();
+        secondShooter.mesh.getWorldPosition(pos2);
+        const mat2 = new MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9 });
+        const mesh2 = new Mesh(geo.clone(), mat2);
+        mesh2.position.copy(pos2);
+        mesh2.position.y -= 0.2;
+        this.scene.add(mesh2);
+        this.enemyBullets.push({ mesh: mesh2, vel: new Vector3(0, -ENEMY_BULLET_SPEED, 0), isPlayer: false });
+      }
+    }
+
     this.audio?.playSound('enemyShoot');
   }
 
@@ -1284,6 +1512,18 @@ export class GameSystem extends createSystem({}) {
     // Player fire cooldown
     if (this.playerFireCooldown > 0) this.playerFireCooldown -= delta;
 
+    // Invincibility frames
+    if (this.iFrames > 0) {
+      this.iFrames -= delta;
+      this.iFrameFlashPhase += delta * 15;
+      // Flash player visibility
+      this.playerMesh.visible = Math.sin(this.iFrameFlashPhase) > 0;
+      if (this.iFrames <= 0) {
+        this.iFrames = 0;
+        this.playerMesh.visible = true;
+      }
+    }
+
     // Move invaders
     this.moveTimer += delta;
     if (this.moveTimer >= this.moveInterval) {
@@ -1323,6 +1563,11 @@ export class GameSystem extends createSystem({}) {
 
     // Animate invaders
     this.animateInvaders(time);
+
+    // Wave entry animation
+    if (this.entryAnimating) {
+      this.updateEntryAnimation(delta);
+    }
 
     // Update HUD
     this.ui?.updateHUD();
@@ -1652,12 +1897,18 @@ export class GameSystem extends createSystem({}) {
       return;
     }
 
+    // Invincibility frames — can't be hit again while flashing
+    if (this.iFrames > 0) return;
+
     this.lives--;
+    this.iFrames = 1.5; // 1.5 seconds of invincibility
+    this.iFrameFlashPhase = 0;
     this.effects?.bigExplosion(this.playerGroup.position.clone(), 0xff0000);
     this.effects?.shake(0.06, 0.3);
     this.audio?.playSound('playerHit');
 
     if (this.lives <= 0) {
+      this.playerMesh.visible = true;
       this.endGame(false);
     }
   }
@@ -1697,6 +1948,55 @@ export class GameSystem extends createSystem({}) {
     }
   }
 
+  private updateEntryAnimation(delta: number) {
+    let allDone = true;
+    for (let r = 0; r < this.entryTimers.length; r++) {
+      if (this.entryProgress[r] >= 1) continue;
+
+      // Countdown delay
+      if (this.entryTimers[r] > 0) {
+        this.entryTimers[r] -= delta;
+        allDone = false;
+        continue;
+      }
+
+      // Animate this row
+      this.entryProgress[r] = Math.min(1, this.entryProgress[r] + delta / this.ENTRY_DURATION);
+      allDone = false;
+
+      // Ease-out bounce: overshoot slightly then settle
+      const t = this.entryProgress[r];
+      const ease = t < 0.7
+        ? (t / 0.7) * 1.15 // overshoot to 1.15
+        : 1.15 - 0.15 * ((t - 0.7) / 0.3); // settle back to 1.0
+
+      for (const inv of this.invaders) {
+        if (inv.row !== r || !inv.alive) continue;
+        const targetY = inv.mesh.userData['targetY'] as number;
+        const startY = this.entryStartY;
+        inv.mesh.position.y = startY + (targetY - startY) * Math.min(1, ease);
+        inv.mesh.scale.setScalar(Math.min(1, t * 1.5)); // scale in
+        (inv.mesh.material as MeshStandardMaterial).opacity = Math.min(0.85, t * 1.2);
+      }
+
+      if (this.entryProgress[r] >= 1) {
+        // Snap to exact position
+        for (const inv of this.invaders) {
+          if (inv.row !== r || !inv.alive) continue;
+          const targetY = inv.mesh.userData['targetY'] as number;
+          inv.mesh.position.y = targetY;
+          inv.mesh.scale.setScalar(1);
+          (inv.mesh.material as MeshStandardMaterial).opacity = 0.85;
+        }
+        // Play entry sound for this row
+        this.audio?.playSound('step');
+      }
+    }
+    if (allDone || this.entryProgress.every(p => p >= 1)) {
+      this.entryAnimating = false;
+    }
+  }
+
   getAccuracy(): number {
     return this.shotsFired > 0 ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
   }
@@ -1714,6 +2014,15 @@ export class GameSystem extends createSystem({}) {
 
   getColorName(): string {
     return this.COLOR_SCHEMES[this.colorScheme].name;
+  }
+
+  getBossVariantName(): string {
+    const names: Record<string, string> = {
+      striker: 'STRIKER',
+      bomber: 'BOMBER',
+      fortress: 'FORTRESS',
+    };
+    return names[this.bossVariant] || 'BOSS';
   }
 
   private checkAchievements() {
@@ -1752,6 +2061,13 @@ export class GameSystem extends createSystem({}) {
       ['Wave 15', this.wavesCleared >= 15],
       ['Score 25000', this.score >= 25000],
       ['Collector', this.totalPowerUpsEver >= 20],
+      // Boss variant achievements
+      ['Striker Down', this.strikerKilled],
+      ['Bomber Down', this.bomberKilled],
+      ['Fortress Breaker', this.fortressKilled],
+      ['Boss Trio', this.strikerKilled && this.bomberKilled && this.fortressKilled],
+      // Difficulty achievements
+      ['Hard Mode', this.difficulty === 'hard' && this.wavesCleared >= 3],
     ];
 
     for (const [name, cond] of checks) {
