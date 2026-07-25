@@ -14,6 +14,7 @@
     .title { font-size: 24; color: #00ffff; }
     .stat { font-size: 14; color: #aaaaaa; }
     .stars { font-size: 20; color: #ffaa00; }
+    .combo { font-size: 13; color: #ffff00; }
     .new-high { font-size: 16; color: #00ff88; }
     .spacer { height: 8; }
     .btn {
@@ -30,6 +31,7 @@
     <text class="stat" name="result-accuracy">Accuracy: 0%</text>
     <text class="stars" name="result-stars">---</text>
     <text class="stat" name="result-time">Time: 0s</text>
+    <text class="combo" name="result-combo"></text>
     <text class="new-high" name="result-new-high"></text>
     <container class="spacer"></container>
     <text class="btn" name="btn-play-again">Play Again</text>

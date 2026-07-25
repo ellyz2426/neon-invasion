@@ -10,7 +10,7 @@
       border-radius: 8;
       border-color: #00ffff;
       border-width: 1;
-      width: 550;
+      width: 600;
     }
     .col {
       flex-direction: column;
@@ -57,6 +57,14 @@
       font-size: 12;
       color: #ff4400;
     }
+    .wave-announce {
+      font-size: 18;
+      color: #ffffff;
+    }
+    .wave-theme {
+      font-size: 12;
+      color: #00ffff;
+    }
   </style>
   <container class="root">
     <container class="col">
@@ -75,6 +83,10 @@
     <text class="combo" name="combo-val"></text>
     <text class="powerup" name="powerup-val"></text>
     <text class="boss" name="boss-val"></text>
+    <container class="col">
+      <text class="wave-announce" name="wave-announce"></text>
+      <text class="wave-theme" name="wave-theme"></text>
+    </container>
     <text class="notify" name="ach-notify"></text>
   </container>
 </panel>

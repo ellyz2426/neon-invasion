@@ -203,6 +203,53 @@ export class EffectsSystem extends createSystem({}) {
     }
   }
 
+  // Boss bullet trail — wider, orange-red sparks
+  bossTrail(pos: Vector3) {
+    const count = 3;
+    for (let i = 0; i < count; i++) {
+      const geo = new BoxGeometry(0.015, 0.04, 0.015);
+      const color = Math.random() > 0.5 ? 0xff4400 : 0xff8800;
+      const mat = new MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.6,
+        blending: AdditiveBlending,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.copy(pos);
+      mesh.position.x += (Math.random() - 0.5) * 0.08;
+      this.group.add(mesh);
+
+      const vel = new Vector3(
+        (Math.random() - 0.5) * 0.5,
+        0.8 + Math.random() * 0.5, // float upward (opposite bullet direction)
+        (Math.random() - 0.5) * 0.2
+      );
+      const life = 0.2 + Math.random() * 0.15;
+      this.particles.push({ mesh, vel, life, maxLife: life });
+    }
+  }
+
+  // Combo flash effect — pulsing ring when multiplier increases
+  comboFlash(pos: Vector3, multiplier: number) {
+    const intensity = Math.min(1, multiplier / 4);
+    const color = multiplier >= 3 ? 0xffff00 : multiplier >= 2 ? 0xffaa00 : 0xff8800;
+    const geo = new CylinderGeometry(0.3, 0.3, 0.01, 16, 1, true);
+    const mat = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: intensity * 0.8,
+      blending: AdditiveBlending,
+      side: 2,
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.copy(pos);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.scale.setScalar(0.1);
+    this.scene.add(mesh);
+    this.flashRings.push({ mesh, timer: 0.3, maxScale: 0.8 + intensity * 0.5 });
+  }
+
   // Shield damage sparks
   shieldSpark(pos: Vector3) {
     const count = 8;

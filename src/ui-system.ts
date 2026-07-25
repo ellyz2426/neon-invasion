@@ -33,6 +33,7 @@ export class UISystem extends createSystem({
   private achPage = 0;
   private notifyTimer = 0;
   private powerUpNotifyTimer = 0;
+  private waveTransitionTimer = 0;
 
   setRefs(refs: { game: GameSystem; audio: AudioSystem; panels: Record<string, any>; positions: Record<string, [number, number, number]> }) {
     this.game = refs.game;
@@ -112,7 +113,7 @@ export class UISystem extends createSystem({
         el?.addEventListener('click', () => { fn(); this.audio?.playSound('click'); });
       };
       wire('btn-ach-prev', () => { this.achPage = Math.max(0, this.achPage - 1); this.updateAch(); });
-      wire('btn-ach-next', () => { this.achPage = Math.min(2, this.achPage + 1); this.updateAch(); });
+      wire('btn-ach-next', () => { this.achPage = Math.min(3, this.achPage + 1); this.updateAch(); });
       wire('btn-ach-back', () => this.showPanel('menu'));
     });
 
@@ -198,7 +199,8 @@ export class UISystem extends createSystem({
       this.set('hud', 'timer-val', '');
     }
     if (this.game.currentCombo > 1) {
-      this.set('hud', 'combo-val', `x${this.game.currentCombo}`);
+      const mul = this.game.comboMultiplier.toFixed(1);
+      this.set('hud', 'combo-val', `x${this.game.currentCombo} (${mul}x)`);
     } else {
       this.set('hud', 'combo-val', '');
     }
@@ -244,6 +246,7 @@ export class UISystem extends createSystem({
     const stars = this.game.getStarRating();
     this.set('results', 'result-stars', '*'.repeat(stars) + '-'.repeat(3 - stars));
     this.set('results', 'result-time', `Time: ${Math.floor(this.game.gameTime)}s`);
+    this.set('results', 'result-combo', `Best Combo: x${this.game.currentCombo > 0 ? this.game.currentCombo : 0}`);
     this.set('results', 'result-new-high', this.game.score >= this.game.highScore && this.game.score > 0 ? 'NEW HIGH SCORE!' : '');
     this.showHUD(false);
     this.showPanel('results');
@@ -259,6 +262,9 @@ export class UISystem extends createSystem({
     this.set('stats', 'stat-shots', `Total Shots: ${this.game.totalShots}`);
     this.set('stats', 'stat-accuracy', `Accuracy: ${this.game.totalShots > 0 ? Math.round(this.game.totalHits / this.game.totalShots * 100) : 0}%`);
     this.set('stats', 'stat-streak', `Best Streak: ${this.game.bestStreak}`);
+    this.set('stats', 'stat-combo', `Best Combo: ${this.game.bestCombo}`);
+    this.set('stats', 'stat-bosses', `Bosses Killed: ${this.game.totalBossKills}`);
+    this.set('stats', 'stat-powerups', `Power-Ups: ${this.game.totalPowerUpsEver}`);
   }
 
   private updateAch() {
@@ -269,6 +275,7 @@ export class UISystem extends createSystem({
       'UFO Master', 'Survivor', 'Speed Demon', 'Challenge Clear',
       'Marathon', '10 Games', 'Win Streak 3', 'Untouchable',
       'Power Up!', 'Power Hoarder', 'Bomb Expert', 'Boss Slayer', 'Boss Hunter',
+      'Combo x15', 'Multiplier Max', 'Wave 15', 'Score 25000', 'Collector',
     ];
     const totalPages = Math.ceil(all.length / 10);
     const perPage = 10;
@@ -314,6 +321,14 @@ export class UISystem extends createSystem({
     this.powerUpNotifyTimer = 2;
   }
 
+  showWaveTransition(wave: number) {
+    const theme = this.game.getWaveThemeName();
+    this.set('hud', 'wave-announce', `WAVE ${wave}`);
+    this.set('hud', 'wave-theme', `${theme} Zone`);
+    this.waveTransitionTimer = 1.5;
+    this.audio?.playSound('waveTransition');
+  }
+
   update(delta: number) {
     if (this.notifyTimer > 0) {
       this.notifyTimer -= delta;
@@ -325,6 +340,13 @@ export class UISystem extends createSystem({
       this.powerUpNotifyTimer -= delta;
       if (this.powerUpNotifyTimer <= 0 && this.notifyTimer <= 0) {
         this.set('hud', 'ach-notify', '');
+      }
+    }
+    if (this.waveTransitionTimer > 0) {
+      this.waveTransitionTimer -= delta;
+      if (this.waveTransitionTimer <= 0) {
+        this.set('hud', 'wave-announce', '');
+        this.set('hud', 'wave-theme', '');
       }
     }
     if (this.game.state === 'results' && this.activePanel === 'hud') {

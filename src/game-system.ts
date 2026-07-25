@@ -247,10 +247,18 @@ export class GameSystem extends createSystem({}) {
   private shieldsRemaining = 0;
   private maxCombo = 0;
   currentCombo = 0;
+  comboMultiplier = 1;
   private comboTimer = 0;
   private gameStartTime = 0;
   private powerUpsThisGame = 0;
   private bombsUsedThisGame = 0;
+  bestCombo = 0;
+  totalPowerUpsEver = 0;
+
+  // Wave transition
+  waveTransitioning = false;
+  private waveTransitionTimer = 0;
+  private pendingWaveSpawn = false;
 
   setRefs(refs: { ui: UISystem; audio: AudioSystem; effects: EffectsSystem; env: EnvironmentSystem }) {
     this.ui = refs.ui;
@@ -284,6 +292,8 @@ export class GameSystem extends createSystem({}) {
       this.achievements = d.achievements || [];
       this.leaderboard = d.leaderboard || [];
       this.totalBossKills = d.totalBossKills || 0;
+      this.bestCombo = d.bestCombo || 0;
+      this.totalPowerUpsEver = d.totalPowerUpsEver || 0;
     } catch { /* ignore */ }
   }
 
@@ -303,6 +313,8 @@ export class GameSystem extends createSystem({}) {
         achievements: this.achievements,
         leaderboard: this.leaderboard,
         totalBossKills: this.totalBossKills,
+        bestCombo: this.bestCombo,
+        totalPowerUpsEver: this.totalPowerUpsEver,
       }));
     } catch { /* ignore */ }
   }
@@ -356,6 +368,7 @@ export class GameSystem extends createSystem({}) {
     this.wavesCleared = 0;
     this.maxCombo = 0;
     this.currentCombo = 0;
+    this.comboMultiplier = 1;
     this.comboTimer = 0;
     this.speedTimer = 120;
     this.gameStartTime = 0;
@@ -369,6 +382,9 @@ export class GameSystem extends createSystem({}) {
     this.bombsUsedThisGame = 0;
     this.bossKillsThisGame = 0;
     this.bossActive = false;
+    this.waveTransitioning = false;
+    this.waveTransitionTimer = 0;
+    this.pendingWaveSpawn = false;
     if (this.boss?.active) {
       this.boss.active = false;
       this.boss.group.visible = false;
@@ -407,22 +423,112 @@ export class GameSystem extends createSystem({}) {
     this.moveInterval = Math.max(0.15, (0.8 - (this.wave - 1) * 0.05) * diffMul);
     this.fireInterval = Math.max(0.3, (1.5 - (this.wave - 1) * 0.08) * diffMul);
 
-    for (let r = 0; r < ROWS; r++) {
-      const type = r === 0 ? 0 : r < 3 ? 1 : 2;
-      const color = ALIEN_COLORS[type];
-      for (let c = 0; c < COLS; c++) {
+    // Select formation based on wave
+    const formation = this.getFormation(this.wave);
+
+    for (let r = 0; r < formation.length; r++) {
+      for (let c = 0; c < formation[r].length; c++) {
+        const cellType = formation[r][c];
+        if (cellType < 0) continue; // skip empty cells
+        const color = ALIEN_COLORS[cellType];
         const x = GRID_LEFT + c * INVADER_SPACING_X;
         const y = GRID_TOP - r * INVADER_SPACING_Y;
-        const mesh = this.createInvaderMesh(type, color);
+        const mesh = this.createInvaderMesh(cellType, color);
         mesh.position.set(x, y, 0);
         const edgeGeo = new EdgesGeometry(mesh.geometry);
         const edgeLines = new LineSegments(edgeGeo, new LineBasicMaterial({ color }));
         mesh.add(edgeLines);
         this.invaderGroup.add(mesh);
-        this.invaders.push({ mesh, row: r, col: c, alive: true, type, edgeLines });
+        this.invaders.push({ mesh, row: r, col: c, alive: true, type: cellType, edgeLines });
       }
     }
-    this.aliensAlive = ROWS * COLS;
+    this.aliensAlive = this.invaders.length;
+  }
+
+  private getFormation(wave: number): number[][] {
+    // Formation index cycles through patterns after wave 1
+    const formationIdx = (wave - 1) % 6;
+
+    // Standard 5x11 grid
+    const stdGrid = (): number[][] => {
+      const grid: number[][] = [];
+      for (let r = 0; r < ROWS; r++) {
+        const type = r === 0 ? 0 : r < 3 ? 1 : 2;
+        const row: number[] = [];
+        for (let c = 0; c < COLS; c++) row.push(type);
+        grid.push(row);
+      }
+      return grid;
+    };
+
+    switch (formationIdx) {
+      case 0: return stdGrid(); // Classic block
+
+      case 1: {
+        // Diamond — remove corners
+        const g = stdGrid();
+        const skip = [[0,0],[0,1],[0,9],[0,10],[0,2],[0,8],[1,0],[1,10],[4,0],[4,10],[4,1],[4,9]];
+        for (const [r,c] of skip) { if (g[r] && g[r][c] !== undefined) g[r][c] = -1; }
+        return g;
+      }
+      case 2: {
+        // Arrow pointing down
+        const g: number[][] = [];
+        for (let r = 0; r < ROWS; r++) {
+          const type = r === 0 ? 0 : r < 3 ? 1 : 2;
+          const row: number[] = [];
+          const margin = r;
+          for (let c = 0; c < COLS; c++) {
+            row.push(c >= margin && c < COLS - margin ? type : -1);
+          }
+          g.push(row);
+        }
+        return g;
+      }
+      case 3: {
+        // Checker pattern — alternate gaps
+        const g: number[][] = [];
+        for (let r = 0; r < ROWS; r++) {
+          const type = r === 0 ? 0 : r < 3 ? 1 : 2;
+          const row: number[] = [];
+          for (let c = 0; c < COLS; c++) {
+            row.push((r + c) % 2 === 0 ? type : -1);
+          }
+          g.push(row);
+        }
+        return g;
+      }
+      case 4: {
+        // V-shape
+        const g: number[][] = [];
+        for (let r = 0; r < ROWS; r++) {
+          const type = r === 0 ? 0 : r < 3 ? 1 : 2;
+          const row: number[] = [];
+          const gap = ROWS - 1 - r;
+          for (let c = 0; c < COLS; c++) {
+            row.push(c >= gap && c < COLS - gap ? type : -1);
+          }
+          g.push(row);
+        }
+        return g;
+      }
+      case 5: {
+        // Wings — center gap
+        const g: number[][] = [];
+        for (let r = 0; r < ROWS; r++) {
+          const type = r === 0 ? 0 : r < 3 ? 1 : 2;
+          const row: number[] = [];
+          const mid = Math.floor(COLS / 2);
+          for (let c = 0; c < COLS; c++) {
+            const distFromCenter = Math.abs(c - mid);
+            row.push(distFromCenter >= 1 ? type : -1);
+          }
+          g.push(row);
+        }
+        return g;
+      }
+      default: return stdGrid();
+    }
   }
 
   private createInvaderMesh(type: number, color: number): Mesh {
@@ -540,6 +646,9 @@ export class GameSystem extends createSystem({}) {
     if (this.wavesCleared > this.bestWave) {
       this.bestWave = this.wavesCleared;
     }
+    if (this.maxCombo > this.bestCombo) {
+      this.bestCombo = this.maxCombo;
+    }
     if (won) {
       this.totalGamesWon++;
       this.winStreak++;
@@ -651,6 +760,7 @@ export class GameSystem extends createSystem({}) {
     this.scene.remove(pu.mesh);
     this.powerUpsCollected++;
     this.powerUpsThisGame++;
+    this.totalPowerUpsEver++;
 
     if (pu.type === 'bomb') {
       // Instant: clear all enemy bullets + damage nearby invaders
@@ -1148,6 +1258,23 @@ export class GameSystem extends createSystem({}) {
       this.comboTimer -= delta;
       if (this.comboTimer <= 0) {
         this.currentCombo = 0;
+        this.comboMultiplier = 1;
+      }
+    }
+
+    // Wave transition
+    if (this.waveTransitioning) {
+      this.waveTransitionTimer -= delta;
+      if (this.waveTransitionTimer <= 0) {
+        this.waveTransitioning = false;
+        if (this.pendingWaveSpawn) {
+          this.pendingWaveSpawn = false;
+          this.invaderGroup.position.set(0, 0, 0);
+          this.spawnWave();
+          this.createShields();
+          this.clearPowerUps();
+          this.applyWaveTheme();
+        }
       }
     }
 
@@ -1373,16 +1500,23 @@ export class GameSystem extends createSystem({}) {
         if (Math.abs(dx) < INVADER_SIZE * 0.5 && Math.abs(dy) < INVADER_SIZE * 0.5) {
           inv.alive = false;
           this.aliensAlive--;
-          this.score += INVADER_POINTS[inv.type];
           this.shotsHit++;
           this.totalHits++;
           this.killsThisGame++;
           this.totalKills++;
           this.currentCombo++;
           this.comboTimer = 2;
+          // Combo multiplier: x1 base, +0.5 per combo step, max x4
+          this.comboMultiplier = Math.min(4, 1 + (this.currentCombo - 1) * 0.5);
+          const comboPoints = Math.round(INVADER_POINTS[inv.type] * this.comboMultiplier);
+          this.score += comboPoints;
           if (this.currentCombo > this.maxCombo) this.maxCombo = this.currentCombo;
           this.effects?.burst(worldPos, ALIEN_COLORS[inv.type], 12);
           this.effects?.scorePopup(worldPos.clone(), ALIEN_COLORS[inv.type]);
+          // Combo flash when multiplier increases
+          if (this.comboMultiplier > 1) {
+            this.effects?.comboFlash(this.playerGroup.position.clone(), this.comboMultiplier);
+          }
           // Death animation
           this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
           const mat = inv.mesh.material as MeshStandardMaterial;
@@ -1411,22 +1545,22 @@ export class GameSystem extends createSystem({}) {
             this.audio?.playSound('waveClear');
             this.effects?.shake(0.04, 0.3);
           } else if (!this.bossActive) {
-            // Normal wave progression
+            // Normal wave progression — trigger transition
             this.wave++;
             this.audio?.playSound('waveClear');
             this.effects?.shake(0.04, 0.3);
             this.effects?.waveFlash(this.COLOR_SCHEMES[this.colorScheme].accent);
+            this.ui?.showWaveTransition(this.wave);
 
             if (this.mode === 'classic' && this.wave > 10) {
               this.endGame(true);
             } else if (this.mode === 'challenge' && this.wave > 5) {
               this.endGame(true);
             } else {
-              this.invaderGroup.position.set(0, 0, 0);
-              this.spawnWave();
-              this.createShields();
-              this.clearPowerUps();
-              this.applyWaveTheme();
+              // Delay next wave spawn for transition animation
+              this.waveTransitioning = true;
+              this.waveTransitionTimer = 1.5;
+              this.pendingWaveSpawn = true;
             }
           }
         }
@@ -1440,7 +1574,13 @@ export class GameSystem extends createSystem({}) {
     // Enemy bullets
     for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
       const b = this.enemyBullets[i];
+      b.mesh.position.x += b.vel.x * delta;
       b.mesh.position.y += b.vel.y * delta;
+
+      // Boss bullet trails — wider spread bullets get particle trails
+      if (Math.abs(b.vel.x) > 0.1 && Math.random() < 0.4) {
+        this.effects?.bossTrail(b.mesh.position.clone());
+      }
 
       // Off screen
       if (b.mesh.position.y < -0.5) {
@@ -1605,6 +1745,13 @@ export class GameSystem extends createSystem({}) {
       // Boss achievements
       ['Boss Slayer', this.bossKillsThisGame >= 1],
       ['Boss Hunter', this.totalBossKills >= 3],
+      // Combo mastery
+      ['Combo x15', this.maxCombo >= 15],
+      ['Multiplier Max', this.comboMultiplier >= 4],
+      // Wave mastery
+      ['Wave 15', this.wavesCleared >= 15],
+      ['Score 25000', this.score >= 25000],
+      ['Collector', this.totalPowerUpsEver >= 20],
     ];
 
     for (const [name, cond] of checks) {
