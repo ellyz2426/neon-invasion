@@ -199,6 +199,8 @@ export class AudioSystem extends createSystem({}) {
       case 'bossDefeat': this.noise(0.5, 0.3); this.playMelody([400, 500, 600, 800, 1000], 0.12, 'square', 0.2); break;
       case 'waveTransition': this.playMelody([392, 523, 659], 0.1, 'triangle', 0.18); break;
       case 'comboUp': this.tone(1200 * pitch, 0.05, 'sine', 0.12); this.tone(1600 * pitch, 0.04, 'sine', 0.1, 0.03); break;
+      case 'killStreak': this.playMelody([880, 1100, 1320, 1760], 0.06, 'square', 0.18); this.tone(440, 0.15, 'sawtooth', 0.1, 0.2); break;
+      case 'bossWarp': this.noise(0.3, 0.15); this.tone(100, 0.4, 'sine', 0.2); this.tone(150, 0.35, 'sine', 0.15, 0.15); break;
     }
   }
 

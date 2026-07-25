@@ -34,6 +34,7 @@ export class UISystem extends createSystem({
   private notifyTimer = 0;
   private powerUpNotifyTimer = 0;
   private waveTransitionTimer = 0;
+  private killStreakTimer = 0;
 
   setRefs(refs: { game: GameSystem; audio: AudioSystem; panels: Record<string, any>; positions: Record<string, [number, number, number]> }) {
     this.game = refs.game;
@@ -274,6 +275,8 @@ export class UISystem extends createSystem({
     this.set('stats', 'stat-combo', `Best Combo: ${this.game.bestCombo}`);
     this.set('stats', 'stat-bosses', `Bosses Killed: ${this.game.totalBossKills}`);
     this.set('stats', 'stat-powerups', `Power-Ups: ${this.game.totalPowerUpsEver}`);
+    this.set('stats', 'stat-streaks', `Kill Streaks: ${this.game.totalKillStreaks}`);
+    this.set('stats', 'stat-best-streak', `Best Streak: ${this.game.bestKillStreak}`);
   }
 
   private updateAch() {
@@ -286,6 +289,7 @@ export class UISystem extends createSystem({
       'Power Up!', 'Power Hoarder', 'Bomb Expert', 'Boss Slayer', 'Boss Hunter',
       'Combo x15', 'Multiplier Max', 'Wave 15', 'Score 25000', 'Collector',
       'Striker Down', 'Bomber Down', 'Fortress Breaker', 'Boss Trio', 'Hard Mode',
+      'Double Kill', 'Triple Threat', 'Mega Killer', 'Streak Master', 'Endless Run',
     ];
     const totalPages = Math.ceil(all.length / 10);
     const perPage = 10;
@@ -339,6 +343,11 @@ export class UISystem extends createSystem({
     this.audio?.playSound('waveTransition');
   }
 
+  showKillStreak(name: string, count: number) {
+    this.set('hud', 'streak-val', name);
+    this.killStreakTimer = 1.5;
+  }
+
   update(delta: number) {
     if (this.notifyTimer > 0) {
       this.notifyTimer -= delta;
@@ -357,6 +366,12 @@ export class UISystem extends createSystem({
       if (this.waveTransitionTimer <= 0) {
         this.set('hud', 'wave-announce', '');
         this.set('hud', 'wave-theme', '');
+      }
+    }
+    if (this.killStreakTimer > 0) {
+      this.killStreakTimer -= delta;
+      if (this.killStreakTimer <= 0) {
+        this.set('hud', 'streak-val', '');
       }
     }
     if (this.game.state === 'results' && this.activePanel === 'hud') {

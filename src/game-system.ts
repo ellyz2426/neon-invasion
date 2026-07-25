@@ -250,6 +250,7 @@ export class GameSystem extends createSystem({}) {
   private readonly ENTRY_ROW_DELAY = 0.12; // stagger per row
   private readonly ENTRY_DURATION = 0.5; // seconds to fly in per row
   private entryStartY = 6.0; // off-screen start Y position
+  private entryFormation = 0; // formation index for spawn animation style
 
   // Per-game tracking
   private shotsFired = 0;
@@ -267,6 +268,13 @@ export class GameSystem extends createSystem({}) {
   private bombsUsedThisGame = 0;
   bestCombo = 0;
   totalPowerUpsEver = 0;
+
+  // Kill streak tracking
+  private killStreakCount = 0;
+  private killStreakTimer = 0;
+  private readonly KILL_STREAK_WINDOW = 1.2; // seconds between kills to count as streak
+  bestKillStreak = 0;
+  totalKillStreaks = 0; // number of streaks >= 2
 
   // Invincibility frames
   private iFrames = 0;
@@ -312,6 +320,8 @@ export class GameSystem extends createSystem({}) {
       this.totalBossKills = d.totalBossKills || 0;
       this.bestCombo = d.bestCombo || 0;
       this.totalPowerUpsEver = d.totalPowerUpsEver || 0;
+      this.bestKillStreak = d.bestKillStreak || 0;
+      this.totalKillStreaks = d.totalKillStreaks || 0;
     } catch { /* ignore */ }
   }
 
@@ -334,6 +344,8 @@ export class GameSystem extends createSystem({}) {
         totalBossKills: this.totalBossKills,
         bestCombo: this.bestCombo,
         totalPowerUpsEver: this.totalPowerUpsEver,
+        bestKillStreak: this.bestKillStreak,
+        totalKillStreaks: this.totalKillStreaks,
       }));
     } catch { /* ignore */ }
   }
@@ -399,6 +411,8 @@ export class GameSystem extends createSystem({}) {
     this.powerUpTimer = 0;
     this.powerUpsThisGame = 0;
     this.bombsUsedThisGame = 0;
+    this.killStreakCount = 0;
+    this.killStreakTimer = 0;
     this.bossKillsThisGame = 0;
     this.bossActive = false;
     this.waveTransitioning = false;
@@ -426,6 +440,7 @@ export class GameSystem extends createSystem({}) {
     const theme = WAVE_THEMES[themeIdx];
     this.env?.setWaveTheme(theme.primary, theme.secondary, theme.ambient);
     this.effects?.setAccentColor(this.COLOR_SCHEMES[this.colorScheme].accent);
+    this.effects?.setDepthAccent(theme.primary);
     // Sync music theme
     this.audio?.setMusicTheme(theme.name);
     // Fire wave transition flash (skip wave 1 start)
@@ -473,18 +488,60 @@ export class GameSystem extends createSystem({}) {
     }
     this.aliensAlive = this.invaders.length;
 
-    // Start entry animation — hide all invaders above screen
+    // Start entry animation — formation-specific behavior
     this.entryAnimating = true;
     this.entryTimers = [];
     this.entryProgress = [];
+    const formationIdx = (this.wave - 1) % 6;
+    this.entryFormation = formationIdx;
     for (let r = 0; r < ROWS; r++) {
-      this.entryTimers.push(r * this.ENTRY_ROW_DELAY);
+      // Formation-specific stagger timing
+      let delay: number;
+      switch (formationIdx) {
+        case 1: // Diamond: center rows first, outer later
+          delay = Math.abs(r - 2) * this.ENTRY_ROW_DELAY * 1.5;
+          break;
+        case 2: // Arrow: top-down cascade fast
+          delay = r * this.ENTRY_ROW_DELAY * 0.8;
+          break;
+        case 3: // Checker: rapid alternating
+          delay = (r % 2) * this.ENTRY_ROW_DELAY * 2 + r * 0.03;
+          break;
+        case 4: // V-shape: bottom up (reversed)
+          delay = (ROWS - 1 - r) * this.ENTRY_ROW_DELAY;
+          break;
+        case 5: // Wings: simultaneous with col spread
+          delay = r * this.ENTRY_ROW_DELAY * 0.5;
+          break;
+        default: // Classic: row by row top-down
+          delay = r * this.ENTRY_ROW_DELAY;
+      }
+      this.entryTimers.push(delay);
       this.entryProgress.push(0);
     }
-    // Store target Y positions and start off-screen
+    // Store target positions and apply formation-specific starts
     for (const inv of this.invaders) {
       inv.mesh.userData['targetY'] = inv.mesh.position.y;
-      inv.mesh.position.y = this.entryStartY;
+      inv.mesh.userData['targetX'] = inv.mesh.position.x;
+      switch (formationIdx) {
+        case 1: // Diamond: invaders start from center and expand outward
+          inv.mesh.position.y = GRID_TOP - 1;
+          inv.mesh.position.x = 0;
+          break;
+        case 3: // Checker: start invisible at position (fade-in only)
+          inv.mesh.position.y = inv.mesh.position.y;
+          break;
+        case 4: // V-shape: start from below, rise up
+          inv.mesh.position.y = -1;
+          break;
+        case 5: // Wings: start from far sides
+          inv.mesh.position.x = inv.col < COLS / 2 ? -6 : 6;
+          inv.mesh.position.y = inv.mesh.position.y;
+          break;
+        default: // Classic, Arrow: start above
+          inv.mesh.position.y = this.entryStartY;
+          break;
+      }
       inv.mesh.scale.setScalar(0.01);
       (inv.mesh.material as MeshStandardMaterial).opacity = 0;
     }
@@ -694,6 +751,14 @@ export class GameSystem extends createSystem({}) {
     if (this.maxCombo > this.bestCombo) {
       this.bestCombo = this.maxCombo;
     }
+    // Finalize any in-progress kill streak
+    if (this.killStreakCount >= 2) {
+      this.totalKillStreaks++;
+      if (this.killStreakCount > this.bestKillStreak) {
+        this.bestKillStreak = this.killStreakCount;
+      }
+    }
+    this.killStreakCount = 0;
     if (won) {
       this.totalGamesWon++;
       this.winStreak++;
@@ -1076,6 +1141,9 @@ export class GameSystem extends createSystem({}) {
     this.bossHp = hp;
     this.bossMaxHp = hp;
     this.audio?.playSound('bossAppear');
+    // Boss spawn distortion effect
+    this.effects?.bossSpawnDistortion(this.boss.group.position.clone());
+    this.effects?.shake(0.06, 0.5);
   }
 
   private updateBoss(delta: number, time: number) {
@@ -1503,6 +1571,20 @@ export class GameSystem extends createSystem({}) {
       }
     }
 
+    // Kill streak decay
+    if (this.killStreakTimer > 0) {
+      this.killStreakTimer -= delta;
+      if (this.killStreakTimer <= 0) {
+        if (this.killStreakCount >= 2) {
+          this.totalKillStreaks++;
+          if (this.killStreakCount > this.bestKillStreak) {
+            this.bestKillStreak = this.killStreakCount;
+          }
+        }
+        this.killStreakCount = 0;
+      }
+    }
+
     // Wave transition
     if (this.waveTransitioning) {
       this.waveTransitionTimer -= delta;
@@ -1790,6 +1872,15 @@ export class GameSystem extends createSystem({}) {
           if (this.comboMultiplier > 1) {
             this.effects?.comboFlash(this.playerGroup.position.clone(), this.comboMultiplier);
           }
+          // Kill streak tracking
+          this.killStreakCount++;
+          this.killStreakTimer = this.KILL_STREAK_WINDOW;
+          if (this.killStreakCount >= 2) {
+            const streakName = this.getKillStreakName(this.killStreakCount);
+            this.ui?.showKillStreak(streakName, this.killStreakCount);
+            this.effects?.killStreakFlash(this.playerGroup.position.clone(), this.killStreakCount);
+            this.audio?.playSound('killStreak');
+          }
           // Death animation
           this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
           const mat = inv.mesh.material as MeshStandardMaterial;
@@ -2001,8 +2092,30 @@ export class GameSystem extends createSystem({}) {
       for (const inv of this.invaders) {
         if (inv.row !== r || !inv.alive) continue;
         const targetY = inv.mesh.userData['targetY'] as number;
-        const startY = this.entryStartY;
-        inv.mesh.position.y = startY + (targetY - startY) * Math.min(1, ease);
+        const targetX = (inv.mesh.userData['targetX'] as number) ?? inv.mesh.position.x;
+
+        switch (this.entryFormation) {
+          case 1: // Diamond: expand from center
+            inv.mesh.position.x = targetX * Math.min(1, ease);
+            inv.mesh.position.y = (GRID_TOP - 1) + (targetY - (GRID_TOP - 1)) * Math.min(1, ease);
+            break;
+          case 3: // Checker: fade-in at position (no movement)
+            inv.mesh.position.y = targetY;
+            break;
+          case 4: // V-shape: rise from below
+            inv.mesh.position.y = -1 + (targetY + 1) * Math.min(1, ease);
+            break;
+          case 5: { // Wings: sweep in from sides
+            const startX = inv.col < COLS / 2 ? -6 : 6;
+            inv.mesh.position.x = startX + (targetX - startX) * Math.min(1, ease);
+            break;
+          }
+          default: { // Classic, Arrow: fly in from top
+            const startY = this.entryStartY;
+            inv.mesh.position.y = startY + (targetY - startY) * Math.min(1, ease);
+            break;
+          }
+        }
         inv.mesh.scale.setScalar(Math.min(1, t * 1.5)); // scale in
         (inv.mesh.material as MeshStandardMaterial).opacity = Math.min(0.85, t * 1.2);
       }
@@ -2012,7 +2125,9 @@ export class GameSystem extends createSystem({}) {
         for (const inv of this.invaders) {
           if (inv.row !== r || !inv.alive) continue;
           const targetY = inv.mesh.userData['targetY'] as number;
+          const targetX = (inv.mesh.userData['targetX'] as number) ?? inv.mesh.position.x;
           inv.mesh.position.y = targetY;
+          inv.mesh.position.x = targetX;
           inv.mesh.scale.setScalar(1);
           (inv.mesh.material as MeshStandardMaterial).opacity = 0.85;
         }
@@ -2027,6 +2142,14 @@ export class GameSystem extends createSystem({}) {
 
   getAccuracy(): number {
     return this.shotsFired > 0 ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
+  }
+
+  private getKillStreakName(count: number): string {
+    if (count >= 6) return 'MEGA KILL!';
+    if (count >= 5) return 'ULTRA KILL!';
+    if (count >= 4) return 'MULTI KILL!';
+    if (count >= 3) return 'TRIPLE KILL!';
+    return 'DOUBLE KILL!';
   }
 
   getStarRating(): number {
@@ -2096,6 +2219,12 @@ export class GameSystem extends createSystem({}) {
       ['Boss Trio', this.strikerKilled && this.bomberKilled && this.fortressKilled],
       // Difficulty achievements
       ['Hard Mode', this.difficulty === 'hard' && this.wavesCleared >= 3],
+      // Kill streak achievements
+      ['Double Kill', this.bestKillStreak >= 2],
+      ['Triple Threat', this.bestKillStreak >= 3],
+      ['Mega Killer', this.bestKillStreak >= 6],
+      ['Streak Master', this.totalKillStreaks >= 10],
+      ['Endless Run', this.mode === 'endless' && this.wavesCleared >= 10],
     ];
 
     for (const [name, cond] of checks) {

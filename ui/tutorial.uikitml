@@ -32,6 +32,7 @@
     <text class="section">Scoring</text>
     <text class="info">Top: 30 | Mid: 20 | Bot: 10 | UFO: 50-300</text>
     <text class="info">Combos stack multipliers up to x4!</text>
+    <text class="info">Rapid kills trigger streaks (2x+)!</text>
     <text class="section">Boss Waves (every 5th)</text>
     <text class="info">STRIKER - Fast, aimed shots</text>
     <text class="info">BOMBER - Wide spray + bomb drops</text>

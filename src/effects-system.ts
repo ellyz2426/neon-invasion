@@ -74,6 +74,24 @@ export class EffectsSystem extends createSystem({}) {
   private comboGlowActive = false;
   private comboGlowMultiplier = 1;
 
+  // Ambient depth particles behind play field
+  private depthParticles: { x: number; y: number; z: number; speedX: number; speedY: number; brightness: number }[] = [];
+  private depthGeometry!: BufferGeometry;
+  private depthPoints!: Points;
+  private depthPositions!: Float32Array;
+  private depthColors!: Float32Array;
+  private readonly DEPTH_COUNT = 120;
+  private depthAccentColor = new Color(0x00ffff);
+
+  // Boss spawn distortion
+  private bossDistortTimer = 0;
+  private bossDistortRing: Mesh | null = null;
+  private bossDistortFlash: Mesh | null = null;
+
+  // Kill streak flash
+  private killStreakFlashTimer = 0;
+  private killStreakRings: { mesh: Mesh; timer: number; maxScale: number }[] = [];
+
   init() {
     this.group = new Group();
     this.scene.add(this.group);
@@ -111,6 +129,9 @@ export class EffectsSystem extends createSystem({}) {
 
     // Create combo glow ring
     this.createComboGlow();
+
+    // Create ambient depth particles
+    this.createDepthParticles();
   }
 
   private createStarfield() {
@@ -484,6 +505,53 @@ export class EffectsSystem extends createSystem({}) {
       }
       this.comboGlowMesh.rotation.z += delta * 2;
     }
+
+    // Depth particles
+    this.updateDepthParticles(delta, time);
+
+    // Boss distortion effect
+    if (this.bossDistortTimer > 0) {
+      this.bossDistortTimer -= delta;
+      const progress = 1 - Math.max(0, this.bossDistortTimer) / 0.8;
+
+      // Expanding shockwave ring
+      if (this.bossDistortRing) {
+        const ringScale = 0.1 + progress * 4.0;
+        this.bossDistortRing.scale.setScalar(ringScale);
+        (this.bossDistortRing.material as MeshBasicMaterial).opacity = Math.max(0, (1 - progress) * 0.9);
+        if (this.bossDistortTimer <= 0) {
+          this.scene.remove(this.bossDistortRing);
+          this.bossDistortRing = null;
+        }
+      }
+
+      // Flash plane fade
+      if (this.bossDistortFlash) {
+        const flashOpacity = progress < 0.2
+          ? (progress / 0.2) * 0.5
+          : 0.5 * (1 - (progress - 0.2) / 0.8);
+        (this.bossDistortFlash.material as MeshBasicMaterial).opacity = Math.max(0, flashOpacity);
+        if (this.bossDistortTimer <= 0) {
+          this.scene.remove(this.bossDistortFlash);
+          this.bossDistortFlash = null;
+        }
+      }
+    }
+
+    // Kill streak rings
+    for (let i = this.killStreakRings.length - 1; i >= 0; i--) {
+      const ring = this.killStreakRings[i];
+      ring.timer -= delta;
+      if (ring.timer <= 0) {
+        this.scene.remove(ring.mesh);
+        this.killStreakRings.splice(i, 1);
+        continue;
+      }
+      const progress = 1 - ring.timer / 0.6;
+      const scale = 0.05 + progress * ring.maxScale;
+      ring.mesh.scale.setScalar(scale);
+      (ring.mesh.material as MeshBasicMaterial).opacity = (1 - progress) * 0.8;
+    }
   }
 
   // Border flash for invader drops
@@ -611,5 +679,152 @@ export class EffectsSystem extends createSystem({}) {
     mesh.scale.setScalar(0.1);
     this.scene.add(mesh);
     this.flashRings.push({ mesh, timer: 0.5, maxScale });
+  }
+
+  // Ambient depth particles behind play field
+  private createDepthParticles() {
+    this.depthParticles = [];
+    this.depthPositions = new Float32Array(this.DEPTH_COUNT * 3);
+    this.depthColors = new Float32Array(this.DEPTH_COUNT * 3);
+
+    for (let i = 0; i < this.DEPTH_COUNT; i++) {
+      const p = {
+        x: (Math.random() - 0.5) * 14,
+        y: Math.random() * 5 + 0.5,
+        z: -3 - Math.random() * 8,
+        speedX: (Math.random() - 0.5) * 0.15,
+        speedY: 0.05 + Math.random() * 0.12,
+        brightness: 0.15 + Math.random() * 0.35,
+      };
+      this.depthParticles.push(p);
+
+      const i3 = i * 3;
+      this.depthPositions[i3] = p.x;
+      this.depthPositions[i3 + 1] = p.y;
+      this.depthPositions[i3 + 2] = p.z;
+
+      // Theme-reactive colors
+      this.depthColors[i3] = p.brightness * 0.3;
+      this.depthColors[i3 + 1] = p.brightness * 0.8;
+      this.depthColors[i3 + 2] = p.brightness;
+    }
+
+    this.depthGeometry = new BufferGeometry();
+    this.depthGeometry.setAttribute('position', new Float32BufferAttribute(this.depthPositions, 3));
+    this.depthGeometry.setAttribute('color', new Float32BufferAttribute(this.depthColors, 3));
+
+    const mat = new PointsMaterial({
+      size: 0.06,
+      transparent: true,
+      opacity: 0.5,
+      vertexColors: true,
+      blending: AdditiveBlending,
+      sizeAttenuation: true,
+    });
+
+    this.depthPoints = new Points(this.depthGeometry, mat);
+    this.scene.add(this.depthPoints);
+  }
+
+  // Update depth particles — called from main update
+  private updateDepthParticles(delta: number, time: number) {
+    for (let i = 0; i < this.DEPTH_COUNT; i++) {
+      const p = this.depthParticles[i];
+      const i3 = i * 3;
+
+      // Slow drift upward + sideways
+      p.y += p.speedY * delta;
+      p.x += p.speedX * delta + Math.sin(time * 0.5 + i) * 0.003;
+
+      // Wrap around
+      if (p.y > 5.5) { p.y = 0.3; p.x = (Math.random() - 0.5) * 14; }
+      if (p.x > 7) p.x = -7;
+      if (p.x < -7) p.x = 7;
+
+      this.depthPositions[i3] = p.x;
+      this.depthPositions[i3 + 1] = p.y;
+      this.depthPositions[i3 + 2] = p.z;
+
+      // Subtle brightness pulse
+      const pulse = p.brightness * (0.7 + Math.sin(time * 0.8 + i * 0.5) * 0.3);
+      this.depthColors[i3] = this.depthAccentColor.r * pulse;
+      this.depthColors[i3 + 1] = this.depthAccentColor.g * pulse;
+      this.depthColors[i3 + 2] = this.depthAccentColor.b * pulse;
+    }
+    this.depthGeometry.attributes['position'].needsUpdate = true;
+    this.depthGeometry.attributes['color'].needsUpdate = true;
+  }
+
+  // Update depth particle accent color to match current wave theme
+  setDepthAccent(color: number) {
+    this.depthAccentColor.setHex(color);
+  }
+
+  // Boss spawn distortion — expanding shockwave ring + brief scene flash
+  bossSpawnDistortion(pos: Vector3) {
+    // Shockwave ring
+    const ringGeo = new CylinderGeometry(0.8, 0.8, 0.03, 32, 1, true);
+    const ringMat = new MeshBasicMaterial({
+      color: 0xff4400,
+      transparent: true,
+      opacity: 0.9,
+      blending: AdditiveBlending,
+      side: 2,
+    });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.position.copy(pos);
+    ring.rotation.x = Math.PI / 2;
+    ring.scale.setScalar(0.1);
+    this.scene.add(ring);
+    this.bossDistortRing = ring;
+
+    // Bright flash plane
+    const flashGeo = new BoxGeometry(16, 8, 0.01);
+    const flashMat = new MeshBasicMaterial({
+      color: 0xff2200,
+      transparent: true,
+      opacity: 0.5,
+      blending: AdditiveBlending,
+      side: 2,
+      depthWrite: false,
+    });
+    const flash = new Mesh(flashGeo, flashMat);
+    flash.position.set(0, 2.5, 1);
+    this.scene.add(flash);
+    this.bossDistortFlash = flash;
+
+    this.bossDistortTimer = 0.8;
+
+    // Spawn burst particles around boss position
+    this.burst(pos, 0xff4400, 30);
+    this.burst(pos.clone().add(new Vector3(0, 0.5, 0)), 0xff8800, 15);
+  }
+
+  // Kill streak flash — expanding rings + burst at player position
+  killStreakFlash(pos: Vector3, streakCount: number) {
+    const color = streakCount >= 5 ? 0xffff00 : streakCount >= 3 ? 0xff8800 : 0xff4444;
+    const scale = 1.0 + (streakCount - 2) * 0.3;
+
+    // Multiple expanding rings
+    for (let i = 0; i < Math.min(streakCount, 4); i++) {
+      const geo = new CylinderGeometry(0.4, 0.4, 0.015, 20, 1, true);
+      const mat = new MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.8 - i * 0.1,
+        blending: AdditiveBlending,
+        side: 2,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.copy(pos);
+      mesh.position.y += 0.2;
+      mesh.rotation.x = Math.PI / 2;
+      mesh.scale.setScalar(0.05 + i * 0.1);
+      this.scene.add(mesh);
+      this.killStreakRings.push({ mesh, timer: 0.5 + i * 0.08, maxScale: scale + i * 0.2 });
+    }
+
+    // Burst particles
+    this.burst(pos.clone().add(new Vector3(0, 0.3, 0)), color, 12 + streakCount * 3);
   }
 }

@@ -53,6 +53,10 @@
       font-size: 11;
       color: #00ff88;
     }
+    .streak {
+      font-size: 16;
+      color: #ff8800;
+    }
     .powerup {
       font-size: 12;
       color: #ff00ff;
@@ -93,5 +97,6 @@
       <text class="wave-theme" name="wave-theme"></text>
     </container>
     <text class="notify" name="ach-notify"></text>
+    <text class="streak" name="streak-val"></text>
   </container>
 </panel>

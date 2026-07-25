@@ -37,6 +37,8 @@
     <text class="stat" name="stat-accuracy">Accuracy: 0%</text>
     <text class="stat" name="stat-combo">Best Combo: 0</text>
     <text class="stat" name="stat-powerups">Power-Ups: 0</text>
+    <text class="stat" name="stat-streaks">Kill Streaks: 0</text>
+    <text class="stat" name="stat-best-streak">Best Streak: 0</text>
     <text class="btn" name="btn-stats-back">Back</text>
   </container>
 </panel>

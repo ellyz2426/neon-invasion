@@ -188,13 +188,37 @@
             "sourceTag": "text",
             "type": "custom",
             "children": [
+              "Kill Streaks: 0"
+            ],
+            "properties": {
+              "class": "stat",
+              "name": "stat-streaks"
+            },
+            "dataUid": "uid-18"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "Best Streak: 0"
+            ],
+            "properties": {
+              "class": "stat",
+              "name": "stat-best-streak"
+            },
+            "dataUid": "uid-19"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
               "Back"
             ],
             "properties": {
               "class": "btn",
               "name": "btn-stats-back"
             },
-            "dataUid": "uid-18"
+            "dataUid": "uid-20"
           }
         ],
         "properties": {
@@ -261,7 +285,7 @@
         "column": 0
       },
       "end": {
-        "line": 41,
+        "line": 43,
         "column": 8
       }
     },
@@ -321,7 +345,7 @@
         "column": 2
       },
       "end": {
-        "line": 40,
+        "line": 42,
         "column": 14
       }
     },
@@ -482,6 +506,26 @@
       },
       "end": {
         "line": 39,
+        "column": 65
+      }
+    },
+    "uid-19": {
+      "start": {
+        "line": 40,
+        "column": 4
+      },
+      "end": {
+        "line": 40,
+        "column": 68
+      }
+    },
+    "uid-20": {
+      "start": {
+        "line": 41,
+        "column": 4
+      },
+      "end": {
+        "line": 41,
         "column": 55
       }
     }
