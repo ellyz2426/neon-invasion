@@ -75,6 +75,20 @@ interface LeaderboardEntry {
   date: string;
 }
 
+interface Boss {
+  group: Group;
+  bodyMesh: Mesh;
+  shieldMeshes: Mesh[];
+  hp: number;
+  maxHp: number;
+  dir: number;
+  speed: number;
+  fireTimer: number;
+  fireInterval: number;
+  hitFlash: number;
+  active: boolean;
+}
+
 // ========== CONSTANTS ==========
 const COLS = 11;
 const ROWS = 5;
@@ -198,6 +212,14 @@ export class GameSystem extends createSystem({}) {
   // Leaderboard
   leaderboard: LeaderboardEntry[] = [];
 
+  // Boss
+  private boss: Boss | null = null;
+  bossActive = false;
+  bossHp = 0;
+  bossMaxHp = 0;
+  totalBossKills = 0;
+  private bossKillsThisGame = 0;
+
   // Achievements
   achievements: string[] = [];
   private achievementQueue: string[] = [];
@@ -261,6 +283,7 @@ export class GameSystem extends createSystem({}) {
       this.winStreak = d.winStreak || 0;
       this.achievements = d.achievements || [];
       this.leaderboard = d.leaderboard || [];
+      this.totalBossKills = d.totalBossKills || 0;
     } catch { /* ignore */ }
   }
 
@@ -279,6 +302,7 @@ export class GameSystem extends createSystem({}) {
         winStreak: this.winStreak,
         achievements: this.achievements,
         leaderboard: this.leaderboard,
+        totalBossKills: this.totalBossKills,
       }));
     } catch { /* ignore */ }
   }
@@ -343,11 +367,18 @@ export class GameSystem extends createSystem({}) {
     this.powerUpTimer = 0;
     this.powerUpsThisGame = 0;
     this.bombsUsedThisGame = 0;
+    this.bossKillsThisGame = 0;
+    this.bossActive = false;
+    if (this.boss?.active) {
+      this.boss.active = false;
+      this.boss.group.visible = false;
+    }
     this.gamesPlayed++;
     this.clearPowerUps();
     this.spawnWave();
     this.createShields();
     this.applyWaveTheme();
+    this.env?.setTitleInvadersVisible(false);
     this.audio?.playSound('start');
   }
 
@@ -497,6 +528,11 @@ export class GameSystem extends createSystem({}) {
       this.ufo.active = false;
       this.ufo.mesh.visible = false;
     }
+    if (this.boss?.active) {
+      this.boss.active = false;
+      this.boss.group.visible = false;
+      this.bossActive = false;
+    }
 
     if (this.score > this.highScore) {
       this.highScore = this.score;
@@ -536,8 +572,14 @@ export class GameSystem extends createSystem({}) {
       this.ufo.active = false;
       this.ufo.mesh.visible = false;
     }
+    if (this.boss?.active) {
+      this.boss.active = false;
+      this.boss.group.visible = false;
+      this.bossActive = false;
+    }
     // Reset environment to default theme
     this.env?.setWaveTheme(0x00ffff, 0xff00ff, 0x112244);
+    this.env?.setTitleInvadersVisible(true);
   }
 
   // ========== POWER-UPS ==========
@@ -621,6 +663,8 @@ export class GameSystem extends createSystem({}) {
       }
     }
 
+    // Flash ring effect at collection point
+    this.effects?.flashRing(pu.mesh.position.clone(), POWERUP_COLORS[pu.type], 1.2);
     this.effects?.burst(pu.mesh.position.clone(), POWERUP_COLORS[pu.type], 15);
     this.audio?.playSound('powerup');
     this.ui?.showPowerUpNotify(pu.type);
@@ -715,6 +759,274 @@ export class GameSystem extends createSystem({}) {
     // Reset player emissive
     const mat = this.playerMesh.material as MeshStandardMaterial;
     mat.emissiveIntensity = 0.4;
+  }
+
+  // ========== BOSS SYSTEM ==========
+  private isBossWave(): boolean {
+    return this.wave % 5 === 0;
+  }
+
+  private spawnBoss() {
+    const tier = Math.floor(this.wave / 5);
+    const hp = 15 + tier * 5;
+    const speed = 0.8 + tier * 0.1;
+    const fireInterval = 2.5 - tier * 0.15;
+
+    if (!this.boss) {
+      // Create boss geometry once
+      const group = new Group();
+
+      // Central body — large glowing sphere
+      const bodyGeo = new SphereGeometry(0.5, 12, 8);
+      const bodyMat = new MeshStandardMaterial({
+        color: 0xff2200,
+        emissive: 0xff2200,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const bodyMesh = new Mesh(bodyGeo, bodyMat);
+      const edgeGeo = new EdgesGeometry(bodyGeo);
+      const edges = new LineSegments(edgeGeo, new LineBasicMaterial({ color: 0xff6600 }));
+      bodyMesh.add(edges);
+      group.add(bodyMesh);
+
+      // Orbiting shield plates (3 rotating box shields)
+      const shieldMeshes: Mesh[] = [];
+      for (let i = 0; i < 3; i++) {
+        const shieldGeo = new BoxGeometry(0.25, 0.08, 0.1);
+        const shieldMat = new MeshStandardMaterial({
+          color: 0xff8800,
+          emissive: 0xff8800,
+          emissiveIntensity: 0.4,
+          transparent: true,
+          opacity: 0.85,
+        });
+        const shieldMesh = new Mesh(shieldGeo, shieldMat);
+        const shieldEdges = new LineSegments(
+          new EdgesGeometry(shieldGeo),
+          new LineBasicMaterial({ color: 0xffaa44 })
+        );
+        shieldMesh.add(shieldEdges);
+        group.add(shieldMesh);
+        shieldMeshes.push(shieldMesh);
+      }
+
+      // Wing extensions
+      const wingGeo = new BoxGeometry(0.6, 0.04, 0.2);
+      const wingMat = new MeshStandardMaterial({
+        color: 0xff4400,
+        emissive: 0xff4400,
+        emissiveIntensity: 0.3,
+      });
+      const wingL = new Mesh(wingGeo, wingMat);
+      wingL.position.set(-0.5, 0, 0);
+      wingL.rotation.z = 0.2;
+      group.add(wingL);
+      const wingR = new Mesh(wingGeo.clone(), wingMat.clone());
+      wingR.position.set(0.5, 0, 0);
+      wingR.rotation.z = -0.2;
+      group.add(wingR);
+
+      group.position.set(0, 3.5, 0);
+      this.scene.add(group);
+
+      this.boss = {
+        group,
+        bodyMesh,
+        shieldMeshes,
+        hp,
+        maxHp: hp,
+        dir: 1,
+        speed,
+        fireTimer: 0,
+        fireInterval: Math.max(0.8, fireInterval),
+        hitFlash: 0,
+        active: true,
+      };
+    } else {
+      // Reuse existing boss
+      this.boss.hp = hp;
+      this.boss.maxHp = hp;
+      this.boss.speed = speed;
+      this.boss.fireInterval = Math.max(0.8, fireInterval);
+      this.boss.fireTimer = 0;
+      this.boss.hitFlash = 0;
+      this.boss.dir = 1;
+      this.boss.active = true;
+      this.boss.group.position.set(0, 3.5, 0);
+      this.boss.group.visible = true;
+      // Reset visuals
+      const mat = this.boss.bodyMesh.material as MeshStandardMaterial;
+      mat.opacity = 0.9;
+      mat.emissiveIntensity = 0.5;
+      for (const sm of this.boss.shieldMeshes) {
+        sm.visible = true;
+        (sm.material as MeshStandardMaterial).opacity = 0.85;
+      }
+    }
+    this.bossActive = true;
+    this.bossHp = hp;
+    this.bossMaxHp = hp;
+    this.audio?.playSound('bossAppear');
+  }
+
+  private updateBoss(delta: number, time: number) {
+    if (!this.boss || !this.boss.active) return;
+
+    // Move side to side
+    this.boss.group.position.x += this.boss.dir * this.boss.speed * delta;
+    if (Math.abs(this.boss.group.position.x) > 3.0) {
+      this.boss.dir *= -1;
+      this.boss.group.position.x = Math.sign(this.boss.group.position.x) * 3.0;
+    }
+
+    // Rotate shield plates around body
+    for (let i = 0; i < this.boss.shieldMeshes.length; i++) {
+      const angle = time * 1.5 + (i * Math.PI * 2 / 3);
+      const radius = 0.7;
+      this.boss.shieldMeshes[i].position.set(
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius * 0.3,
+        Math.sin(angle) * radius * 0.2
+      );
+      this.boss.shieldMeshes[i].rotation.z = angle;
+    }
+
+    // Boss body pulsing
+    const pulse = 0.4 + Math.sin(time * 3) * 0.15;
+    const mat = this.boss.bodyMesh.material as MeshStandardMaterial;
+    if (this.boss.hitFlash > 0) {
+      this.boss.hitFlash -= delta;
+      mat.emissiveIntensity = 1.5;
+      mat.color.setHex(0xffffff);
+    } else {
+      mat.emissiveIntensity = pulse;
+      mat.color.setHex(0xff2200);
+    }
+
+    // Boss firing
+    this.boss.fireTimer += delta;
+    if (this.boss.fireTimer >= this.boss.fireInterval) {
+      this.boss.fireTimer = 0;
+      this.fireBossBullets();
+    }
+
+    // Remove shield visuals as HP drops
+    const hpFrac = this.boss.hp / this.boss.maxHp;
+    if (hpFrac < 0.33 && this.boss.shieldMeshes[2].visible) {
+      this.boss.shieldMeshes[2].visible = false;
+      this.effects?.burst(this.boss.group.position.clone(), 0xff8800, 10);
+    }
+    if (hpFrac < 0.66 && this.boss.shieldMeshes[1].visible) {
+      this.boss.shieldMeshes[1].visible = false;
+      this.effects?.burst(this.boss.group.position.clone(), 0xff8800, 10);
+    }
+  }
+
+  private fireBossBullets() {
+    if (!this.boss) return;
+    const bossPos = this.boss.group.position;
+
+    // Fire 3-way spread
+    const angles = [-0.3, 0, 0.3];
+    for (const angle of angles) {
+      const geo = new BoxGeometry(0.06, 0.16, 0.06);
+      const mat = new MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.9 });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.set(bossPos.x, bossPos.y - 0.5, bossPos.z);
+      this.scene.add(mesh);
+      this.enemyBullets.push({
+        mesh,
+        vel: new Vector3(Math.sin(angle) * ENEMY_BULLET_SPEED, -ENEMY_BULLET_SPEED, 0),
+        isPlayer: false,
+      });
+    }
+    this.audio?.playSound('bossShoot');
+  }
+
+  private hitBoss() {
+    if (!this.boss || !this.boss.active) return;
+    this.boss.hp--;
+    this.boss.hitFlash = 0.1;
+    this.bossHp = this.boss.hp;
+    this.effects?.burst(this.boss.group.position.clone(), 0xff6600, 6);
+    this.effects?.shake(0.02, 0.1);
+    this.audio?.playSound('hit');
+
+    if (this.boss.hp <= 0) {
+      this.killBoss();
+    }
+  }
+
+  private killBoss() {
+    if (!this.boss) return;
+    this.boss.active = false;
+    this.bossActive = false;
+
+    // Big explosion
+    this.effects?.bigExplosion(this.boss.group.position.clone(), 0xff4400);
+    this.effects?.bigExplosion(
+      this.boss.group.position.clone().add(new Vector3(0.3, 0.2, 0)),
+      0xff8800
+    );
+    this.effects?.shake(0.1, 0.5);
+
+    // Score
+    const bossPoints = 500 + this.wave * 50;
+    this.score += bossPoints;
+    this.bossKillsThisGame++;
+    this.totalBossKills++;
+
+    // Guaranteed power-up drop
+    const pos = this.boss.group.position.clone();
+    this.boss.group.visible = false;
+
+    // Force drop a power-up
+    const types: PowerUpType[] = ['shield', 'rapid', 'multi', 'bomb'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const color = POWERUP_COLORS[type];
+    const group = new Group();
+    const glowGeo = new SphereGeometry(0.15, 8, 6);
+    const glowMat = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.4,
+      blending: AdditiveBlending,
+    });
+    group.add(new Mesh(glowGeo, glowMat));
+    const iconGeo = new SphereGeometry(0.06, 6, 4);
+    const iconMat = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8 });
+    group.add(new Mesh(iconGeo, iconMat));
+    group.position.copy(pos);
+    this.scene.add(group);
+    this.powerUps.push({
+      mesh: group,
+      type,
+      vel: new Vector3(0, -POWERUP_FALL_SPEED * 0.7, 0),
+      active: true,
+    });
+
+    this.audio?.playSound('bossDefeat');
+
+    // Flash ring effect for boss kill
+    this.effects?.flashRing(pos, 0xff4400, 2.0);
+
+    // Advance wave after boss kill
+    this.wave++;
+    this.effects?.waveFlash(this.COLOR_SCHEMES[this.colorScheme].accent);
+
+    if (this.mode === 'classic' && this.wave > 10) {
+      this.endGame(true);
+    } else if (this.mode === 'challenge' && this.wave > 5) {
+      this.endGame(true);
+    } else {
+      this.invaderGroup.position.set(0, 0, 0);
+      this.spawnWave();
+      this.createShields();
+      this.clearPowerUps();
+      this.applyWaveTheme();
+    }
   }
 
   private firePlayerBullet() {
@@ -879,6 +1191,9 @@ export class GameSystem extends createSystem({}) {
     // Update power-ups
     this.updatePowerUps(delta);
 
+    // Update boss
+    this.updateBoss(delta, time);
+
     // Animate invaders
     this.animateInvaders(time);
 
@@ -1033,6 +1348,20 @@ export class GameSystem extends createSystem({}) {
         }
       }
 
+      // Check boss hit
+      if (this.boss?.active) {
+        const dx = b.mesh.position.x - this.boss.group.position.x;
+        const dy = b.mesh.position.y - this.boss.group.position.y;
+        if (Math.abs(dx) < 0.55 && Math.abs(dy) < 0.45) {
+          this.shotsHit++;
+          this.totalHits++;
+          this.hitBoss();
+          this.scene.remove(b.mesh);
+          this.playerBullets.splice(i, 1);
+          continue;
+        }
+      }
+
       // Check invader hit
       let hit = false;
       for (const inv of this.invaders) {
@@ -1075,21 +1404,30 @@ export class GameSystem extends createSystem({}) {
         if (this.aliensAlive <= 0) {
           this.wavesCleared++;
           this.totalWaves++;
-          this.wave++;
-          this.audio?.playSound('waveClear');
-          this.effects?.shake(0.04, 0.3);
-          this.effects?.waveFlash(this.COLOR_SCHEMES[this.colorScheme].accent);
 
-          if (this.mode === 'classic' && this.wave > 10) {
-            this.endGame(true);
-          } else if (this.mode === 'challenge' && this.wave > 5) {
-            this.endGame(true);
-          } else {
-            this.invaderGroup.position.set(0, 0, 0);
-            this.spawnWave();
-            this.createShields();
-            this.clearPowerUps();
-            this.applyWaveTheme();
+          if (this.isBossWave() && !this.bossActive) {
+            // Boss wave: spawn boss after clearing invaders
+            this.spawnBoss();
+            this.audio?.playSound('waveClear');
+            this.effects?.shake(0.04, 0.3);
+          } else if (!this.bossActive) {
+            // Normal wave progression
+            this.wave++;
+            this.audio?.playSound('waveClear');
+            this.effects?.shake(0.04, 0.3);
+            this.effects?.waveFlash(this.COLOR_SCHEMES[this.colorScheme].accent);
+
+            if (this.mode === 'classic' && this.wave > 10) {
+              this.endGame(true);
+            } else if (this.mode === 'challenge' && this.wave > 5) {
+              this.endGame(true);
+            } else {
+              this.invaderGroup.position.set(0, 0, 0);
+              this.spawnWave();
+              this.createShields();
+              this.clearPowerUps();
+              this.applyWaveTheme();
+            }
           }
         }
         continue;
@@ -1260,6 +1598,13 @@ export class GameSystem extends createSystem({}) {
       ['10 Games', this.gamesPlayed >= 10],
       ['Win Streak 3', this.winStreak >= 3],
       ['Untouchable', this.wavesCleared >= 2 && this.shotsFired === this.shotsHit],
+      // Power-up achievements
+      ['Power Up!', this.powerUpsThisGame >= 1],
+      ['Power Hoarder', this.powerUpsThisGame >= 5],
+      ['Bomb Expert', this.bombsUsedThisGame >= 3],
+      // Boss achievements
+      ['Boss Slayer', this.bossKillsThisGame >= 1],
+      ['Boss Hunter', this.totalBossKills >= 3],
     ];
 
     for (const [name, cond] of checks) {

@@ -37,6 +37,9 @@
     <text class="info">Bot row: 10 pts</text>
     <text class="info">UFO: 50-300 pts</text>
     <text class="info">Hit combos for multipliers!</text>
+    <text class="section">Boss Waves</text>
+    <text class="info">Every 5th wave has a boss!</text>
+    <text class="info">Bosses drop power-ups</text>
     <text class="btn" name="btn-tutorial-back">Back</text>
   </container>
 </panel>

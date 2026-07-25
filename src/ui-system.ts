@@ -112,7 +112,7 @@ export class UISystem extends createSystem({
         el?.addEventListener('click', () => { fn(); this.audio?.playSound('click'); });
       };
       wire('btn-ach-prev', () => { this.achPage = Math.max(0, this.achPage - 1); this.updateAch(); });
-      wire('btn-ach-next', () => { this.achPage = Math.min(1, this.achPage + 1); this.updateAch(); });
+      wire('btn-ach-next', () => { this.achPage = Math.min(2, this.achPage + 1); this.updateAch(); });
       wire('btn-ach-back', () => this.showPanel('menu'));
     });
 
@@ -212,6 +212,15 @@ export class UISystem extends createSystem({
     } else {
       this.set('hud', 'powerup-val', '');
     }
+
+    // Boss HP indicator
+    if (this.game.bossActive) {
+      const filled = Math.ceil((this.game.bossHp / this.game.bossMaxHp) * 10);
+      const bar = '|'.repeat(filled) + '.'.repeat(10 - filled);
+      this.set('hud', 'boss-val', `BOSS [${bar}]`);
+    } else {
+      this.set('hud', 'boss-val', '');
+    }
   }
 
   private updateMenu() {
@@ -259,7 +268,9 @@ export class UISystem extends createSystem({
       'Score 1000', 'Score 5000', 'Score 10000', 'Perfect Wave',
       'UFO Master', 'Survivor', 'Speed Demon', 'Challenge Clear',
       'Marathon', '10 Games', 'Win Streak 3', 'Untouchable',
+      'Power Up!', 'Power Hoarder', 'Bomb Expert', 'Boss Slayer', 'Boss Hunter',
     ];
+    const totalPages = Math.ceil(all.length / 10);
     const perPage = 10;
     const start = this.achPage * perPage;
     const page = all.slice(start, start + perPage);
@@ -268,7 +279,7 @@ export class UISystem extends createSystem({
       const unlocked = ach ? this.game.achievements.includes(ach) : false;
       this.set('achpanel', `ach-${i}`, ach ? (unlocked ? `[*] ${ach}` : `[ ] ${ach}`) : '');
     }
-    this.set('achpanel', 'ach-page', `${this.achPage + 1}/2`);
+    this.set('achpanel', 'ach-page', `${this.achPage + 1}/${totalPages}`);
     this.set('achpanel', 'ach-count', `${this.game.achievements.length}/${all.length}`);
   }
 

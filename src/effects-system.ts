@@ -3,6 +3,7 @@ import {
   Mesh,
   SphereGeometry,
   BoxGeometry,
+  CylinderGeometry,
   MeshBasicMaterial,
   Vector3,
   AdditiveBlending,
@@ -55,6 +56,9 @@ export class EffectsSystem extends createSystem({}) {
 
   // Score popup floating indicators
   private scorePopups: { mesh: Mesh; timer: number; vel: Vector3 }[] = [];
+
+  // Flash ring effects for power-up collection and boss kills
+  private flashRings: { mesh: Mesh; timer: number; maxScale: number }[] = [];
 
   // Border warning flash for invader drops
   private borderFlashTimer = 0;
@@ -368,6 +372,21 @@ export class EffectsSystem extends createSystem({}) {
       (sp.mesh.material as MeshBasicMaterial).opacity = frac * 0.9;
       sp.mesh.scale.setScalar(0.5 + frac * 0.5);
     }
+
+    // Flash rings
+    for (let i = this.flashRings.length - 1; i >= 0; i--) {
+      const ring = this.flashRings[i];
+      ring.timer -= delta;
+      if (ring.timer <= 0) {
+        this.scene.remove(ring.mesh);
+        this.flashRings.splice(i, 1);
+        continue;
+      }
+      const progress = 1 - ring.timer / 0.5;
+      const scale = 0.1 + progress * ring.maxScale;
+      ring.mesh.scale.setScalar(scale);
+      (ring.mesh.material as MeshBasicMaterial).opacity = (1 - progress) * 0.9;
+    }
   }
 
   // Border flash for invader drops
@@ -424,5 +443,24 @@ export class EffectsSystem extends createSystem({}) {
       const mat = orb.material as MeshBasicMaterial;
       mat.color.copy(c);
     }
+  }
+
+  // Expanding flash ring effect for power-up collection and boss kills
+  flashRing(pos: Vector3, color: number, maxScale: number) {
+    // Create a thin ring using a cylinder with inner radius ≈ outer
+    const geo = new CylinderGeometry(0.5, 0.5, 0.02, 24, 1, true);
+    const mat = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.9,
+      blending: AdditiveBlending,
+      side: 2, // DoubleSide
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.copy(pos);
+    mesh.rotation.x = Math.PI / 2; // lay flat facing camera
+    mesh.scale.setScalar(0.1);
+    this.scene.add(mesh);
+    this.flashRings.push({ mesh, timer: 0.5, maxScale });
   }
 }

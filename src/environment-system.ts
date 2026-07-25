@@ -38,6 +38,10 @@ export class EnvironmentSystem extends createSystem({}) {
   private cometTimer = 0;
   private cometInterval = 3;
 
+  // Title screen floating invaders
+  private titleInvaders: { mesh: Mesh; baseY: number; speed: number; phase: number }[] = [];
+  titleInvadersVisible = true;
+
   // Wave theme
   private currentPrimary = new Color(0x00ffff);
   private currentSecondary = new Color(0xff00ff);
@@ -77,6 +81,9 @@ export class EnvironmentSystem extends createSystem({}) {
 
     // Grid lines
     this.createGridLines();
+
+    // Title screen floating invaders
+    this.createTitleInvaders();
   }
 
   setWaveTheme(primary: number, secondary: number, ambient: number) {
@@ -209,6 +216,47 @@ export class EnvironmentSystem extends createSystem({}) {
     }
   }
 
+  private createTitleInvaders() {
+    const invaderGeos = [
+      new SphereGeometry(0.12, 6, 4),
+      new BoxGeometry(0.2, 0.12, 0.1),
+      new CylinderGeometry(0, 0.12, 0.18, 5),
+    ];
+    const colors = [0x00ffff, 0xff00ff, 0x00ff88, 0xffaa00, 0xff4466];
+
+    for (let i = 0; i < 8; i++) {
+      const geoIdx = i % 3;
+      const colorIdx = i % colors.length;
+      const geo = invaderGeos[geoIdx];
+      const mat = new MeshBasicMaterial({
+        color: colors[colorIdx],
+        transparent: true,
+        opacity: 0.15,
+        blending: AdditiveBlending,
+      });
+      const mesh = new Mesh(geo.clone(), mat);
+      const x = (Math.random() - 0.5) * 6;
+      const y = 1 + Math.random() * 3;
+      const z = 2 + Math.random() * 2;
+      mesh.position.set(x, y, z);
+      mesh.scale.setScalar(1.5 + Math.random());
+      this.scene.add(mesh);
+      this.titleInvaders.push({
+        mesh,
+        baseY: y,
+        speed: 0.2 + Math.random() * 0.3,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  setTitleInvadersVisible(visible: boolean) {
+    this.titleInvadersVisible = visible;
+    for (const ti of this.titleInvaders) {
+      ti.mesh.visible = visible;
+    }
+  }
+
   private spawnComet() {
     // Random start position at top/side
     const startSide = Math.random() > 0.5;
@@ -314,6 +362,15 @@ export class EnvironmentSystem extends createSystem({}) {
       const frac = c.life / c.maxLife;
       (c.mesh.material as MeshBasicMaterial).opacity = frac * 0.9;
       (c.trail.material as MeshBasicMaterial).opacity = frac * 0.4;
+    }
+
+    // Title screen floating invaders
+    if (this.titleInvadersVisible) {
+      for (const ti of this.titleInvaders) {
+        ti.mesh.position.y = ti.baseY + Math.sin(time * ti.speed + ti.phase) * 0.3;
+        ti.mesh.rotation.y += delta * 0.4;
+        ti.mesh.rotation.x = Math.sin(time * 0.3 + ti.phase) * 0.1;
+      }
     }
   }
 }

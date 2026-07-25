@@ -38,6 +38,10 @@ export class AudioSystem extends createSystem({}) {
       case 'powerup': this.playMelody([660, 880, 1100], 0.08, 'sine', 0.2); this.tone(440, 0.15, 'triangle', 0.1, 0.2); break;
       case 'bomb': this.noise(0.4, 0.35); this.tone(100, 0.5, 'sawtooth', 0.2); this.tone(60, 0.6, 'sawtooth', 0.15, 0.2); break;
       case 'shieldBlock': this.tone(1200 * pitch, 0.08, 'sine', 0.15); this.tone(900, 0.12, 'sine', 0.1, 0.05); break;
+      // Boss sounds
+      case 'bossAppear': this.noise(0.15, 0.1); this.playMelody([200, 250, 300, 350], 0.15, 'sawtooth', 0.2); break;
+      case 'bossShoot': this.tone(200 * pitch, 0.12, 'sawtooth', 0.12); this.tone(150, 0.15, 'square', 0.08, 0.05); break;
+      case 'bossDefeat': this.noise(0.5, 0.3); this.playMelody([400, 500, 600, 800, 1000], 0.12, 'square', 0.2); break;
     }
   }
 

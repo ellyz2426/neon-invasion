@@ -176,13 +176,46 @@
             "sourceTag": "text",
             "type": "custom",
             "children": [
+              "Boss Waves"
+            ],
+            "properties": {
+              "class": "section"
+            },
+            "dataUid": "uid-18"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "Every 5th wave has a boss!"
+            ],
+            "properties": {
+              "class": "info"
+            },
+            "dataUid": "uid-19"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
+              "Bosses drop power-ups"
+            ],
+            "properties": {
+              "class": "info"
+            },
+            "dataUid": "uid-20"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
               "Back"
             ],
             "properties": {
               "class": "btn",
               "name": "btn-tutorial-back"
             },
-            "dataUid": "uid-18"
+            "dataUid": "uid-21"
           }
         ],
         "properties": {
@@ -249,7 +282,7 @@
         "column": 0
       },
       "end": {
-        "line": 41,
+        "line": 44,
         "column": 8
       }
     },
@@ -309,7 +342,7 @@
         "column": 2
       },
       "end": {
-        "line": 40,
+        "line": 43,
         "column": 14
       }
     },
@@ -470,6 +503,36 @@
       },
       "end": {
         "line": 39,
+        "column": 43
+      }
+    },
+    "uid-19": {
+      "start": {
+        "line": 40,
+        "column": 4
+      },
+      "end": {
+        "line": 40,
+        "column": 56
+      }
+    },
+    "uid-20": {
+      "start": {
+        "line": 41,
+        "column": 4
+      },
+      "end": {
+        "line": 41,
+        "column": 51
+      }
+    },
+    "uid-21": {
+      "start": {
+        "line": 42,
+        "column": 4
+      },
+      "end": {
+        "line": 42,
         "column": 58
       }
     }
