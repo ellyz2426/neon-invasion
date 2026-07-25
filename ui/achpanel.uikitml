@@ -1,0 +1,51 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: column;
+      align-items: center;
+      padding: 12;
+      gap: 4;
+      background-color: rgba(0, 10, 21, 0.95);
+      border-radius: 12;
+      border-color: #00ffff;
+      border-width: 2;
+      width: 380;
+    }
+    .title { font-size: 20; color: #00ffff; }
+    .count { font-size: 12; color: #888888; }
+    .ach { font-size: 13; color: #aaaaaa; }
+    .nav-row { flex-direction: row; gap: 12; align-items: center; }
+    .nav-btn {
+      font-size: 14; color: #00ccaa;
+      background-color: #001a22; padding: 6;
+      border-radius: 4; border-width: 1; border-color: #004444;
+    }
+    .page { font-size: 12; color: #888888; }
+    .btn {
+      font-size: 14; color: #00ccaa;
+      background-color: #001a22; padding: 6;
+      border-radius: 6; border-width: 1; border-color: #004444;
+      width: 120; text-align: center; margin-top: 6;
+    }
+  </style>
+  <container class="root">
+    <text class="title">ACHIEVEMENTS</text>
+    <text class="count" name="ach-count">0/20</text>
+    <text class="ach" name="ach-0"></text>
+    <text class="ach" name="ach-1"></text>
+    <text class="ach" name="ach-2"></text>
+    <text class="ach" name="ach-3"></text>
+    <text class="ach" name="ach-4"></text>
+    <text class="ach" name="ach-5"></text>
+    <text class="ach" name="ach-6"></text>
+    <text class="ach" name="ach-7"></text>
+    <text class="ach" name="ach-8"></text>
+    <text class="ach" name="ach-9"></text>
+    <container class="nav-row">
+      <text class="nav-btn" name="btn-ach-prev">Prev</text>
+      <text class="page" name="ach-page">1/2</text>
+      <text class="nav-btn" name="btn-ach-next">Next</text>
+    </container>
+    <text class="btn" name="btn-ach-back">Back</text>
+  </container>
+</panel>

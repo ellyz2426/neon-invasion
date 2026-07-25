@@ -1,0 +1,70 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8;
+      gap: 16;
+      background-color: rgba(0, 0, 0, 0.85);
+      border-radius: 8;
+      border-color: #00ffff;
+      border-width: 1;
+      width: 500;
+    }
+    .col {
+      flex-direction: column;
+      align-items: center;
+      gap: 2;
+    }
+    .label {
+      font-size: 10;
+      color: #888888;
+    }
+    .score-val {
+      font-size: 16;
+      color: #00ffff;
+    }
+    .lives-val {
+      font-size: 16;
+      color: #ff4444;
+    }
+    .wave {
+      font-size: 12;
+      color: #ffaa00;
+    }
+    .high {
+      font-size: 10;
+      color: #666666;
+    }
+    .timer {
+      font-size: 14;
+      color: #ff8800;
+    }
+    .combo {
+      font-size: 14;
+      color: #ffff00;
+    }
+    .notify {
+      font-size: 11;
+      color: #00ff88;
+    }
+  </style>
+  <container class="root">
+    <container class="col">
+      <text class="label">SCORE</text>
+      <text class="score-val" name="score-val">0</text>
+    </container>
+    <container class="col">
+      <text class="label">LIVES</text>
+      <text class="lives-val" name="lives-val">x3</text>
+    </container>
+    <container class="col">
+      <text class="wave" name="wave-val">Wave 1</text>
+      <text class="high" name="high-val">Best: 0</text>
+    </container>
+    <text class="timer" name="timer-val"></text>
+    <text class="combo" name="combo-val"></text>
+    <text class="notify" name="ach-notify"></text>
+  </container>
+</panel>

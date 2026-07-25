@@ -1,0 +1,35 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: column;
+      align-items: center;
+      padding: 16;
+      gap: 12;
+      background-color: rgba(0, 10, 21, 0.95);
+      border-radius: 12;
+      border-color: #ffaa00;
+      border-width: 2;
+      width: 350;
+    }
+    .title { font-size: 24; color: #ffaa00; }
+    .spacer { height: 16; }
+    .btn {
+      font-size: 16; color: #00ffff;
+      background-color: #002233; padding: 10;
+      border-radius: 8; border-width: 1; border-color: #00ffff;
+      width: 200; text-align: center;
+    }
+    .btn-quit {
+      font-size: 15; color: #ff4444;
+      background-color: #220000; padding: 8;
+      border-radius: 6; border-width: 1; border-color: #440000;
+      width: 200; text-align: center;
+    }
+  </style>
+  <container class="root">
+    <text class="title">PAUSED</text>
+    <container class="spacer"></container>
+    <text class="btn" name="btn-resume">Resume</text>
+    <text class="btn-quit" name="btn-quit">Quit to Menu</text>
+  </container>
+</panel>

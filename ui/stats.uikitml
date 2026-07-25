@@ -1,0 +1,36 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: column;
+      align-items: center;
+      padding: 16;
+      gap: 8;
+      background-color: rgba(0, 10, 21, 0.95);
+      border-radius: 12;
+      border-color: #00ffff;
+      border-width: 2;
+      width: 360;
+    }
+    .title { font-size: 20; color: #00ffff; }
+    .stat { font-size: 13; color: #aaaaaa; }
+    .btn {
+      font-size: 14; color: #00ccaa;
+      background-color: #001a22; padding: 6;
+      border-radius: 6; border-width: 1; border-color: #004444;
+      width: 120; text-align: center; margin-top: 8;
+    }
+  </style>
+  <container class="root">
+    <text class="title">STATISTICS</text>
+    <text class="stat" name="stat-games">Games Played: 0</text>
+    <text class="stat" name="stat-wins">Games Won: 0</text>
+    <text class="stat" name="stat-high">High Score: 0</text>
+    <text class="stat" name="stat-best-wave">Best Wave: 0</text>
+    <text class="stat" name="stat-kills">Total Kills: 0</text>
+    <text class="stat" name="stat-ufos">UFOs Hit: 0</text>
+    <text class="stat" name="stat-shots">Total Shots: 0</text>
+    <text class="stat" name="stat-accuracy">Accuracy: 0%</text>
+    <text class="stat" name="stat-streak">Best Streak: 0</text>
+    <text class="btn" name="btn-stats-back">Back</text>
+  </container>
+</panel>

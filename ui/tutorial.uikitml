@@ -1,0 +1,42 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: column;
+      align-items: center;
+      padding: 16;
+      gap: 8;
+      background-color: rgba(0, 10, 21, 0.95);
+      border-radius: 12;
+      border-color: #00ffff;
+      border-width: 2;
+      width: 400;
+    }
+    .title { font-size: 20; color: #00ffff; }
+    .section { font-size: 14; color: #ffaa00; margin-top: 4; }
+    .info { font-size: 12; color: #aaaaaa; }
+    .btn {
+      font-size: 14; color: #00ccaa;
+      background-color: #001a22; padding: 6;
+      border-radius: 6; border-width: 1; border-color: #004444;
+      width: 120; text-align: center; margin-top: 8;
+    }
+  </style>
+  <container class="root">
+    <text class="title">HOW TO PLAY</text>
+    <text class="section">Controls</text>
+    <text class="info">Arrow keys or A/D to move</text>
+    <text class="info">Space to shoot</text>
+    <text class="info">P or Esc to pause</text>
+    <text class="section">VR Controls</text>
+    <text class="info">Right stick to move</text>
+    <text class="info">Trigger to shoot</text>
+    <text class="info">B button to pause</text>
+    <text class="section">Scoring</text>
+    <text class="info">Top row: 30 pts</text>
+    <text class="info">Mid row: 20 pts</text>
+    <text class="info">Bot row: 10 pts</text>
+    <text class="info">UFO: 50-300 pts</text>
+    <text class="info">Hit combos for multipliers!</text>
+    <text class="btn" name="btn-tutorial-back">Back</text>
+  </container>
+</panel>

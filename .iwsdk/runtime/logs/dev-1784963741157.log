@@ -1,0 +1,78 @@
+
+> neon-invasion@1.0.0 dev:runtime
+> vite
+
+🚀 Generating initial UIKitML files for dev server...
+👁️  UIKitML file watcher started - monitoring for changes...
+7:15:43 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v7.3.6  ready in 2069 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://198.19.0.2:5173/
+🖥️  IWSDK: Using SwiftShader (software rendering) — no GPU detected
+7:17:00 AM [vite] (client) page reload src/index.ts
+7:18:54 AM [vite] (client) page reload src/index.ts
+7:20:00 AM [vite] (client) page reload src/ui-system.ts
+7:20:07 AM [vite] (client) page reload src/ui-system.ts
+7:22:35 AM [vite] (client) page reload src/index.ts
+7:23:41 AM [vite] (client) page reload src/ui-system.ts
+7:23:42 AM [vite] (client) Pre-transform error: Failed to load url /src/ui-system.ts (resolved id: /home/hatch/workspace/neon-invasion/src/ui-system.ts) in /home/hatch/workspace/neon-invasion/src/index.ts. Does the file exist?
+[browser] Failed to load resource: the server responded with a status of 404 (Not Found)
+7:24:30 AM [vite] (client) page reload src/ui-system.ts
+7:26:01 AM [vite] (client) page reload src/ui-system.ts
+7:26:05 AM [vite] (client) page reload src/ui-system.ts
+[browser] [PanelUISystem] Error loading panel for entity 18: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:250:25)
+    at http://localhost:5173/src/index.ts?t=1784964361964:39:10
+[browser] [PanelUISystem] Error loading panel for entity 14: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:250:25)
+    at http://localhost:5173/src/index.ts?t=1784964361964:39:10
+[browser] [PanelUISystem] Error loading panel for entity 17: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:250:25)
+    at http://localhost:5173/src/index.ts?t=1784964361964:39:10
+[browser] [PanelUISystem] Error loading panel for entity 12: TypeError: Failed to fetch
+[browser] [PanelUISystem] Error loading panel for entity 16: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:250:25)
+    at http://localhost:5173/src/index.ts?t=1784964361964:39:10
+[browser] [PanelUISystem] Error loading panel for entity 15: TypeError: Failed to fetch
+    at PanelUISystem.loadPanel (http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44853:30)
+    at http://localhost:5173/node_modules/.vite/deps/chunk-6OMCUL54.js?v=b2e2b5eb:44820:12
+    at QueryManager.updateEntity (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:1207:11)
+    at Entity.addComponent (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=b2e2b5eb:250:25)
+    at http://localhost:5173/src/index.ts?t=1784964361964:39:10
+[browser] [PanelUISystem] Error loading panel for entity 11: TypeError: Failed to fetch
+[browser] [PanelUISystem] Error loading panel for entity 13: TypeError: Failed to fetch
+7:27:06 AM [vite] (client) page reload src/index.ts
+📝 UIKitML file change: ui/menu.uikitml
+✅ UIKitML file recompiled: menu.uikitml
+📝 UIKitML file change: ui/hud.uikitml
+✅ UIKitML file recompiled: hud.uikitml
+📝 UIKitML file change: ui/pause.uikitml
+📝 UIKitML file change: ui/results.uikitml
+📝 UIKitML file change: ui/achpanel.uikitml
+📝 UIKitML file change: ui/settings.uikitml
+📝 UIKitML file change: ui/tutorial.uikitml
+📝 UIKitML file change: ui/stats.uikitml
+✅ UIKitML file recompiled: stats.uikitml
+📝 UIKitML file change: ui/menu.uikitml
+📝 UIKitML file change: ui/hud.uikitml
+📝 UIKitML file change: ui/pause.uikitml
+📝 UIKitML file change: ui/results.uikitml
+📝 UIKitML file change: ui/settings.uikitml
+📝 UIKitML file change: ui/stats.uikitml
+📝 UIKitML file change: ui/tutorial.uikitml
+📝 UIKitML file change: ui/achpanel.uikitml
+✅ UIKitML file recompiled: achpanel.uikitml

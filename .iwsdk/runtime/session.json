@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "sessionId": "0127f181-9e63-4e8f-8ce3-abe9b644035c",
+  "workspaceRoot": "/home/hatch/workspace/neon-invasion",
+  "pid": 1458,
+  "port": 5173,
+  "localUrl": "http://localhost:5173/",
+  "networkUrls": [
+    "http://198.19.0.2:5173/"
+  ],
+  "aiMode": "agent",
+  "browser": {
+    "status": "connected",
+    "connected": true,
+    "commandReady": true,
+    "connectedClientCount": 1,
+    "lastTransitionAt": "2026-07-25T07:34:05.868Z",
+    "lastBridgeConnectedAt": "2026-07-25T07:33:29.488Z",
+    "lastCommandReadyAt": "2026-07-25T07:34:05.868Z"
+  },
+  "registeredAt": "2026-07-25T07:15:43.948Z",
+  "updatedAt": "2026-07-25T07:34:05.871Z"
+}

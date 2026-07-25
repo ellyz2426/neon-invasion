@@ -1,0 +1,38 @@
+<panel>
+  <style>
+    .root {
+      flex-direction: column;
+      align-items: center;
+      padding: 16;
+      gap: 8;
+      background-color: rgba(0, 10, 21, 0.95);
+      border-radius: 12;
+      border-color: #00ffff;
+      border-width: 2;
+      width: 400;
+    }
+    .title { font-size: 24; color: #00ffff; }
+    .stat { font-size: 14; color: #aaaaaa; }
+    .stars { font-size: 20; color: #ffaa00; }
+    .new-high { font-size: 16; color: #00ff88; }
+    .spacer { height: 8; }
+    .btn {
+      font-size: 16; color: #00ffff;
+      background-color: #002233; padding: 8;
+      border-radius: 8; border-width: 1; border-color: #00ffff;
+      width: 200; text-align: center;
+    }
+  </style>
+  <container class="root">
+    <text class="title" name="result-title">GAME OVER</text>
+    <text class="stat" name="result-score">Score: 0</text>
+    <text class="stat" name="result-waves">Waves: 0</text>
+    <text class="stat" name="result-accuracy">Accuracy: 0%</text>
+    <text class="stars" name="result-stars">---</text>
+    <text class="stat" name="result-time">Time: 0s</text>
+    <text class="new-high" name="result-new-high"></text>
+    <container class="spacer"></container>
+    <text class="btn" name="btn-play-again">Play Again</text>
+    <text class="btn" name="btn-menu">Main Menu</text>
+  </container>
+</panel>
