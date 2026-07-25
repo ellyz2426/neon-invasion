@@ -25,8 +25,8 @@ export class AudioSystem extends createSystem({}) {
       case 'playerHit': this.noise(0.2, 0.25); this.tone(200, 0.3, 'sawtooth', 0.15); break;
       case 'enemyShoot': this.tone(300 * pitch, 0.08, 'sawtooth', 0.08); break;
       case 'step': this.tone(120 * pitch, 0.04, 'square', 0.04); break;
-      case 'drop': this.tone(80, 0.15, 'sawtooth', 0.1); break;
-      case 'ufo': this.tone(600, 0.3, 'sine', 0.1); this.tone(620, 0.3, 'sine', 0.08, 0.1); break;
+      case 'drop': this.tone(80, 0.15, 'sawtooth', 0.1); this.tone(60, 0.2, 'square', 0.08, 0.1); break;
+      case 'ufo': this.tone(600, 0.3, 'sine', 0.1); this.tone(620, 0.3, 'sine', 0.08, 0.1); this.tone(580, 0.3, 'sine', 0.06, 0.2); break;
       case 'ufoHit': this.tone(1200, 0.15, 'square', 0.2); this.tone(800, 0.15, 'square', 0.15, 0.1); break;
       case 'waveClear': this.playMelody([523, 659, 784, 1047], 0.12, 'sine', 0.15); break;
       case 'victory': this.playMelody([523, 659, 784, 1047, 1319], 0.15, 'sine', 0.2); break;

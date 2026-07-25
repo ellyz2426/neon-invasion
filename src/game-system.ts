@@ -660,6 +660,8 @@ export class GameSystem extends createSystem({}) {
       // Speed up slightly
       this.moveInterval *= 0.95;
       this.audio?.playSound('drop');
+      this.effects?.borderWarning();
+      this.effects?.shake(0.02, 0.15);
 
       // Check if any invader reached player level
       for (const inv of alive) {
@@ -742,6 +744,7 @@ export class GameSystem extends createSystem({}) {
           this.comboTimer = 2;
           if (this.currentCombo > this.maxCombo) this.maxCombo = this.currentCombo;
           this.effects?.burst(worldPos, ALIEN_COLORS[inv.type], 12);
+          this.effects?.scorePopup(worldPos.clone(), ALIEN_COLORS[inv.type]);
           // Death animation — scale up and fade out instead of instant hide
           this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
           const mat = inv.mesh.material as MeshStandardMaterial;

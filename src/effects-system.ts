@@ -53,6 +53,13 @@ export class EffectsSystem extends createSystem({}) {
   private waveFlashTimer = 0;
   private waveFlashColor = 0x00ffff;
 
+  // Score popup floating indicators
+  private scorePopups: { mesh: Mesh; timer: number; vel: Vector3 }[] = [];
+
+  // Border warning flash for invader drops
+  private borderFlashTimer = 0;
+  private borderFlashMeshes: Mesh[] = [];
+
   init() {
     this.group = new Group();
     this.scene.add(this.group);
@@ -81,6 +88,9 @@ export class EffectsSystem extends createSystem({}) {
 
     // Create starfield
     this.createStarfield();
+
+    // Create border flash indicators
+    this.createBorderFlash();
   }
 
   private createStarfield() {
@@ -333,6 +343,78 @@ export class EffectsSystem extends createSystem({}) {
         mat.opacity = 0.3 + brightness * 0.5;
       }
     }
+
+    // Border flash
+    if (this.borderFlashTimer > 0) {
+      this.borderFlashTimer -= delta;
+      const intensity = Math.max(0, this.borderFlashTimer / 0.4);
+      for (const mesh of this.borderFlashMeshes) {
+        (mesh.material as MeshBasicMaterial).opacity = intensity * 0.6;
+      }
+    }
+
+    // Score popups
+    for (let i = this.scorePopups.length - 1; i >= 0; i--) {
+      const sp = this.scorePopups[i];
+      sp.timer -= delta;
+      if (sp.timer <= 0) {
+        this.group.remove(sp.mesh);
+        this.scorePopups.splice(i, 1);
+        continue;
+      }
+      sp.mesh.position.x += sp.vel.x * delta;
+      sp.mesh.position.y += sp.vel.y * delta;
+      const frac = sp.timer / 0.6;
+      (sp.mesh.material as MeshBasicMaterial).opacity = frac * 0.9;
+      sp.mesh.scale.setScalar(0.5 + frac * 0.5);
+    }
+  }
+
+  // Border flash for invader drops
+  private createBorderFlash() {
+    const positions: [number, number, number, number, number, number][] = [
+      // left bar
+      [-4.2, 2, -0.5, 0.02, 4.5, 0.02],
+      // right bar
+      [4.2, 2, -0.5, 0.02, 4.5, 0.02],
+    ];
+    for (const [x, y, z, w, h, d] of positions) {
+      const geo = new BoxGeometry(w, h, d);
+      const mat = new MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0,
+        blending: AdditiveBlending,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      this.scene.add(mesh);
+      this.borderFlashMeshes.push(mesh);
+    }
+  }
+
+  // Flash borders when invaders drop
+  borderWarning() {
+    this.borderFlashTimer = 0.4;
+  }
+
+  // Score popup at position
+  scorePopup(pos: Vector3, color: number) {
+    const geo = new SphereGeometry(0.06, 6, 4);
+    const mat = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.9,
+      blending: AdditiveBlending,
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.copy(pos);
+    this.group.add(mesh);
+    this.scorePopups.push({
+      mesh,
+      timer: 0.6,
+      vel: new Vector3((Math.random() - 0.5) * 0.3, 1.5, 0),
+    });
   }
 
   // Update orb colors based on color scheme

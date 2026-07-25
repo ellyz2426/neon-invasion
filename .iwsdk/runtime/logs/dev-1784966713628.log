@@ -5,21 +5,11 @@
 🚀 Generating initial UIKitML files for dev server...
 👁️  UIKitML file watcher started - monitoring for changes...
 
-  VITE v7.3.6  ready in 2043 ms
+  VITE v7.3.6  ready in 1967 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: http://198.19.0.2:5173/
 🖥️  IWSDK: Using SwiftShader (software rendering) — no GPU detected
-8:03:25 AM [vite] (client) page reload src/effects-system.ts
-[browser:pageerror] TypeError: this.createBorderFlash is not a function
-    at EffectsSystem.init (http://localhost:5173/src/effects-system.ts?t=1784966604982:65:10)
-    at World2.registerSystem (http://localhost:5173/node_modules/.vite/deps/chunk-QU7LT5Q3.js?v=dff76b6a:1312:20)
-    at http://localhost:5173/src/index.ts?t=1784966604982:43:69
-8:03:43 AM [vite] (client) page reload src/effects-system.ts
-8:03:52 AM [vite] (client) page reload src/effects-system.ts
-8:04:00 AM [vite] (client) page reload src/game-system.ts
-8:04:07 AM [vite] (client) page reload src/game-system.ts
-8:04:14 AM [vite] (client) page reload src/audio-system.ts
 
 🥽 IWSDK Dev Summary (Development):
   - Device: metaQuest3
