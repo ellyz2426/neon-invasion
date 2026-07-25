@@ -237,6 +237,7 @@ export class GameSystem extends createSystem({}) {
     { name: 'Gold', accent: 0xffaa00, secondary: 0x00ff88, invTint: 0.9 },
   ];
   soundEnabled = true;
+  musicEnabled = true;
 
   // Invader animation
   private invaderPulsePhase = 0;
@@ -298,6 +299,7 @@ export class GameSystem extends createSystem({}) {
       this.highScore = d.highScore || 0;
       this.colorScheme = d.colorScheme || 0;
       this.soundEnabled = d.soundEnabled !== false;
+      this.musicEnabled = d.musicEnabled !== false;
       this.difficulty = d.difficulty || 'medium';
       this.mode = d.mode || 'classic';
       this.gamesPlayed = d.gamesPlayed || 0;
@@ -319,6 +321,7 @@ export class GameSystem extends createSystem({}) {
         highScore: this.highScore,
         colorScheme: this.colorScheme,
         soundEnabled: this.soundEnabled,
+        musicEnabled: this.musicEnabled,
         difficulty: this.difficulty,
         mode: this.mode,
         gamesPlayed: this.gamesPlayed,
@@ -414,6 +417,8 @@ export class GameSystem extends createSystem({}) {
     this.applyWaveTheme();
     this.env?.setTitleInvadersVisible(false);
     this.audio?.playSound('start');
+    // Start ambient music
+    this.audio?.startMusic();
   }
 
   private applyWaveTheme() {
@@ -421,6 +426,12 @@ export class GameSystem extends createSystem({}) {
     const theme = WAVE_THEMES[themeIdx];
     this.env?.setWaveTheme(theme.primary, theme.secondary, theme.ambient);
     this.effects?.setAccentColor(this.COLOR_SCHEMES[this.colorScheme].accent);
+    // Sync music theme
+    this.audio?.setMusicTheme(theme.name);
+    // Fire wave transition flash (skip wave 1 start)
+    if (this.wave > 1 || this.wavesCleared > 0) {
+      this.effects?.themeFlash(theme.primary);
+    }
   }
 
   getWaveThemeName(): string {
@@ -694,6 +705,7 @@ export class GameSystem extends createSystem({}) {
     this.checkAchievements();
     this.savePersistence();
     this.audio?.playSound(won ? 'victory' : 'defeat');
+    this.audio?.stopMusic();
   }
 
   returnToMenu() {
@@ -723,6 +735,7 @@ export class GameSystem extends createSystem({}) {
     // Reset environment to default theme
     this.env?.setWaveTheme(0x00ffff, 0xff00ff, 0x112244);
     this.env?.setTitleInvadersVisible(true);
+    this.audio?.stopMusic();
   }
 
   // ========== POWER-UPS ==========
@@ -1568,6 +1581,21 @@ export class GameSystem extends createSystem({}) {
     if (this.entryAnimating) {
       this.updateEntryAnimation(delta);
     }
+
+    // Update ambient music
+    this.audio?.updateMusic(delta);
+    // Scale music intensity based on gameplay: more intense with fewer aliens + higher waves
+    const aliveRatio = this.aliensAlive / (ROWS * COLS);
+    const waveIntensity = Math.min(1, this.wave / 10);
+    const bossBoost = this.bossActive ? 0.3 : 0;
+    this.audio?.setMusicIntensity(0.2 + (1 - aliveRatio) * 0.3 + waveIntensity * 0.3 + bossBoost);
+
+    // Update combo glow effect
+    this.effects?.updateComboGlow(
+      this.playerX, PLAYER_Y,
+      this.comboMultiplier,
+      this.currentCombo > 1
+    );
 
     // Update HUD
     this.ui?.updateHUD();

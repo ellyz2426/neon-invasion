@@ -45,6 +45,10 @@
       font-size: 14;
       color: #ffff00;
     }
+    .multiplier {
+      font-size: 12;
+      color: #ffaa00;
+    }
     .notify {
       font-size: 11;
       color: #00ff88;
@@ -81,6 +85,7 @@
     </container>
     <text class="timer" name="timer-val"></text>
     <text class="combo" name="combo-val"></text>
+    <text class="multiplier" name="multiplier-bar"></text>
     <text class="powerup" name="powerup-val"></text>
     <text class="boss" name="boss-val"></text>
     <container class="col">

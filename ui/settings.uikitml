@@ -54,6 +54,7 @@
       <text class="arrow" name="btn-diff-next">&gt;</text>
     </container>
     <text class="toggle" name="btn-sound-toggle">Sound: ON</text>
+    <text class="toggle" name="btn-music-toggle">Music: ON</text>
     <text class="btn" name="btn-settings-back">Back</text>
   </container>
 </panel>

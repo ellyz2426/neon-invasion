@@ -40,6 +40,9 @@
     <text class="section">Difficulty</text>
     <text class="info">Hard: Aimed bullets + double shots</text>
     <text class="info">Easy: Slower bullets, wider gaps</text>
+    <text class="section">Music</text>
+    <text class="info">Ambient synth music reacts to gameplay</text>
+    <text class="info">Toggle music in Settings</text>
     <text class="btn" name="btn-tutorial-back">Back</text>
   </container>
 </panel>

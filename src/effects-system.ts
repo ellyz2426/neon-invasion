@@ -64,6 +64,16 @@ export class EffectsSystem extends createSystem({}) {
   private borderFlashTimer = 0;
   private borderFlashMeshes: Mesh[] = [];
 
+  // Wave theme transition full-screen flash
+  private themeFlashTimer = 0;
+  private themeFlashColor = new Color(0x00ffff);
+  private themeFlashMesh: Mesh | null = null;
+
+  // Combo multiplier persistent glow ring around player
+  private comboGlowMesh: Mesh | null = null;
+  private comboGlowActive = false;
+  private comboGlowMultiplier = 1;
+
   init() {
     this.group = new Group();
     this.scene.add(this.group);
@@ -95,6 +105,12 @@ export class EffectsSystem extends createSystem({}) {
 
     // Create border flash indicators
     this.createBorderFlash();
+
+    // Create wave theme flash overlay
+    this.createThemeFlash();
+
+    // Create combo glow ring
+    this.createComboGlow();
   }
 
   private createStarfield() {
@@ -434,6 +450,40 @@ export class EffectsSystem extends createSystem({}) {
       ring.mesh.scale.setScalar(scale);
       (ring.mesh.material as MeshBasicMaterial).opacity = (1 - progress) * 0.9;
     }
+
+    // Wave theme transition flash
+    if (this.themeFlashTimer > 0 && this.themeFlashMesh) {
+      this.themeFlashTimer -= delta;
+      const progress = 1 - Math.max(0, this.themeFlashTimer) / 0.6;
+      const opacity = progress < 0.15
+        ? (progress / 0.15) * 0.35  // quick fade in
+        : 0.35 * (1 - (progress - 0.15) / 0.85); // slow fade out
+      (this.themeFlashMesh.material as MeshBasicMaterial).opacity = Math.max(0, opacity);
+      if (this.themeFlashTimer <= 0) {
+        this.themeFlashMesh.visible = false;
+      }
+    }
+
+    // Combo glow ring
+    if (this.comboGlowMesh && this.comboGlowActive && this.comboGlowMultiplier > 1) {
+      const pulseSpeed = 3 + this.comboGlowMultiplier;
+      const pulse = 0.25 + Math.sin(time * pulseSpeed) * 0.15;
+      const scale = 0.3 + (this.comboGlowMultiplier - 1) * 0.15;
+      this.comboGlowMesh.scale.set(scale, scale, scale);
+      const mat = this.comboGlowMesh.material as MeshBasicMaterial;
+      mat.opacity = pulse;
+      // Color shifts with multiplier: orange → yellow → white
+      if (this.comboGlowMultiplier >= 3.5) {
+        mat.color.setHex(0xffffaa);
+      } else if (this.comboGlowMultiplier >= 2.5) {
+        mat.color.setHex(0xffff44);
+      } else if (this.comboGlowMultiplier >= 1.5) {
+        mat.color.setHex(0xffaa00);
+      } else {
+        mat.color.setHex(0xff8800);
+      }
+      this.comboGlowMesh.rotation.z += delta * 2;
+    }
   }
 
   // Border flash for invader drops
@@ -462,6 +512,58 @@ export class EffectsSystem extends createSystem({}) {
   // Flash borders when invaders drop
   borderWarning() {
     this.borderFlashTimer = 0.4;
+  }
+
+  // Wave theme transition flash — full-screen flash
+  themeFlash(color: number) {
+    this.themeFlashColor.setHex(color);
+    this.themeFlashTimer = 0.6;
+    if (this.themeFlashMesh) {
+      (this.themeFlashMesh.material as MeshBasicMaterial).color.copy(this.themeFlashColor);
+      (this.themeFlashMesh.material as MeshBasicMaterial).opacity = 0.35;
+      this.themeFlashMesh.visible = true;
+    }
+  }
+
+  private createThemeFlash() {
+    const geo = new BoxGeometry(14, 6, 0.01);
+    const mat = new MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      side: 2,
+      depthWrite: false,
+    });
+    this.themeFlashMesh = new Mesh(geo, mat);
+    this.themeFlashMesh.position.set(0, 2.5, 1);
+    this.themeFlashMesh.visible = false;
+    this.scene.add(this.themeFlashMesh);
+  }
+
+  // Combo glow ring — persistent ring showing active multiplier
+  updateComboGlow(playerX: number, playerY: number, multiplier: number, active: boolean) {
+    this.comboGlowActive = active;
+    this.comboGlowMultiplier = multiplier;
+    if (this.comboGlowMesh) {
+      this.comboGlowMesh.position.set(playerX, playerY, 0);
+      this.comboGlowMesh.visible = active && multiplier > 1;
+    }
+  }
+
+  private createComboGlow() {
+    const geo = new CylinderGeometry(0.35, 0.35, 0.01, 24, 1, true);
+    const mat = new MeshBasicMaterial({
+      color: 0xffaa00,
+      transparent: true,
+      opacity: 0.4,
+      blending: AdditiveBlending,
+      side: 2,
+    });
+    this.comboGlowMesh = new Mesh(geo, mat);
+    this.comboGlowMesh.rotation.x = Math.PI / 2;
+    this.comboGlowMesh.visible = false;
+    this.scene.add(this.comboGlowMesh);
   }
 
   // Score popup at position

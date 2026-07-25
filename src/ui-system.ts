@@ -128,6 +128,7 @@ export class UISystem extends createSystem({
       wire('btn-color-prev', () => { this.game.colorScheme = (this.game.colorScheme + 3) % 4; this.game.updatePlayerColor(); this.game.savePersistence(); this.updateSettings(); });
       wire('btn-color-next', () => { this.game.colorScheme = (this.game.colorScheme + 1) % 4; this.game.updatePlayerColor(); this.game.savePersistence(); this.updateSettings(); });
       wire('btn-sound-toggle', () => { this.game.soundEnabled = !this.game.soundEnabled; this.game.savePersistence(); this.updateSettings(); });
+      wire('btn-music-toggle', () => { this.game.musicEnabled = !this.game.musicEnabled; this.audio?.setMusicEnabled(this.game.musicEnabled); this.game.savePersistence(); this.updateSettings(); });
       wire('btn-mode-prev', () => {
         const modes = ['classic', 'speed', 'zen', 'challenge', 'endless'] as const;
         const idx = modes.indexOf(this.game.mode);
@@ -201,8 +202,13 @@ export class UISystem extends createSystem({
     if (this.game.currentCombo > 1) {
       const mul = this.game.comboMultiplier.toFixed(1);
       this.set('hud', 'combo-val', `x${this.game.currentCombo} (${mul}x)`);
+      // Visual multiplier bar: filled segments showing progress to max (4x)
+      const filled = Math.min(6, Math.round((this.game.comboMultiplier - 1) / 0.5));
+      const bar = '■'.repeat(filled) + '□'.repeat(6 - filled);
+      this.set('hud', 'multiplier-bar', `[${bar}] ${mul}x`);
     } else {
       this.set('hud', 'combo-val', '');
+      this.set('hud', 'multiplier-bar', '');
     }
 
     // Power-up indicator
@@ -234,6 +240,8 @@ export class UISystem extends createSystem({
   private updateSettings() {
     this.set('settings', 'color-val', this.game.getColorName());
     this.set('settings', 'sound-val', this.game.soundEnabled ? 'ON' : 'OFF');
+    this.set('settings', 'btn-sound-toggle', `Sound: ${this.game.soundEnabled ? 'ON' : 'OFF'}`);
+    this.set('settings', 'btn-music-toggle', `Music: ${this.game.musicEnabled ? 'ON' : 'OFF'}`);
     this.set('settings', 'mode-val', this.game.mode.toUpperCase());
     this.set('settings', 'diff-val', this.game.difficulty.toUpperCase());
   }

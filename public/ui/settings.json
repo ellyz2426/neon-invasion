@@ -205,13 +205,25 @@
             "sourceTag": "text",
             "type": "custom",
             "children": [
+              "Music: ON"
+            ],
+            "properties": {
+              "class": "toggle",
+              "name": "btn-music-toggle"
+            },
+            "dataUid": "uid-20"
+          },
+          {
+            "sourceTag": "text",
+            "type": "custom",
+            "children": [
               "Back"
             ],
             "properties": {
               "class": "btn",
               "name": "btn-settings-back"
             },
-            "dataUid": "uid-20"
+            "dataUid": "uid-21"
           }
         ],
         "properties": {
@@ -311,7 +323,7 @@
         "column": 0
       },
       "end": {
-        "line": 58,
+        "line": 59,
         "column": 8
       }
     },
@@ -401,7 +413,7 @@
         "column": 2
       },
       "end": {
-        "line": 57,
+        "line": 58,
         "column": 14
       }
     },
@@ -582,6 +594,16 @@
       },
       "end": {
         "line": 56,
+        "column": 65
+      }
+    },
+    "uid-21": {
+      "start": {
+        "line": 57,
+        "column": 4
+      },
+      "end": {
+        "line": 57,
         "column": 58
       }
     }
