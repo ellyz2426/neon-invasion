@@ -10,7 +10,7 @@
       border-radius: 8;
       border-color: #00ffff;
       border-width: 1;
-      width: 500;
+      width: 550;
     }
     .col {
       flex-direction: column;
@@ -49,6 +49,10 @@
       font-size: 11;
       color: #00ff88;
     }
+    .powerup {
+      font-size: 12;
+      color: #ff00ff;
+    }
   </style>
   <container class="root">
     <container class="col">
@@ -65,6 +69,7 @@
     </container>
     <text class="timer" name="timer-val"></text>
     <text class="combo" name="combo-val"></text>
+    <text class="powerup" name="powerup-val"></text>
     <text class="notify" name="ach-notify"></text>
   </container>
 </panel>

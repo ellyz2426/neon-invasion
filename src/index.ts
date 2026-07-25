@@ -24,14 +24,15 @@ const world = await World.create(container, {
 // === Panel Entities ===
 const pY = 1.5, pZ = 3.5;
 const panelDefs: { key: string; config: string; pos: [number, number, number]; show: boolean }[] = [
-  { key: 'menu',     config: './ui/menu.json',      pos: [0, pY, pZ],      show: true },
-  { key: 'hud',      config: './ui/hud.json',       pos: [0, 2.3, 3.8],    show: false },
-  { key: 'pause',    config: './ui/pause.json',      pos: [0, pY, pZ],      show: false },
-  { key: 'results',  config: './ui/results.json',    pos: [0, pY, pZ],      show: false },
-  { key: 'achpanel', config: './ui/achpanel.json',    pos: [0, pY, pZ],      show: false },
-  { key: 'settings', config: './ui/settings.json',    pos: [0, pY, pZ],      show: false },
-  { key: 'stats',    config: './ui/stats.json',       pos: [0, pY, pZ],      show: false },
-  { key: 'tutorial', config: './ui/tutorial.json',     pos: [0, pY, pZ],      show: false },
+  { key: 'menu',        config: './ui/menu.json',         pos: [0, pY, pZ],      show: true },
+  { key: 'hud',         config: './ui/hud.json',          pos: [0, 2.3, 3.8],    show: false },
+  { key: 'pause',       config: './ui/pause.json',        pos: [0, pY, pZ],      show: false },
+  { key: 'results',     config: './ui/results.json',      pos: [0, pY, pZ],      show: false },
+  { key: 'achpanel',    config: './ui/achpanel.json',     pos: [0, pY, pZ],      show: false },
+  { key: 'settings',    config: './ui/settings.json',     pos: [0, pY, pZ],      show: false },
+  { key: 'stats',       config: './ui/stats.json',        pos: [0, pY, pZ],      show: false },
+  { key: 'tutorial',    config: './ui/tutorial.json',     pos: [0, pY, pZ],      show: false },
+  { key: 'leaderboard', config: './ui/leaderboard.json',  pos: [0, pY, pZ],      show: false },
 ];
 
 const panelEntities: Record<string, any> = {};
@@ -58,6 +59,7 @@ const game = world.getSystem(GameSystem)!;
 const ui = world.getSystem(UISystem)!;
 const audio = world.getSystem(AudioSystem)!;
 const effects = world.getSystem(EffectsSystem)!;
+const env = world.getSystem(EnvironmentSystem)!;
 
-game.setRefs({ ui, audio, effects });
+game.setRefs({ ui, audio, effects, env });
 ui.setRefs({ game, audio, panels: panelEntities, positions: panelPositions });

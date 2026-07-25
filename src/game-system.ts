@@ -21,6 +21,7 @@ import {
 import type { UISystem } from './ui-system';
 import type { AudioSystem } from './audio-system';
 import type { EffectsSystem } from './effects-system';
+import type { EnvironmentSystem } from './environment-system';
 
 // ========== TYPES ==========
 interface Invader {
@@ -58,6 +59,22 @@ interface UFO {
   speed: number;
 }
 
+type PowerUpType = 'shield' | 'rapid' | 'multi' | 'bomb';
+
+interface PowerUp {
+  mesh: Group;
+  type: PowerUpType;
+  vel: Vector3;
+  active: boolean;
+}
+
+interface LeaderboardEntry {
+  score: number;
+  wave: number;
+  mode: string;
+  date: string;
+}
+
 // ========== CONSTANTS ==========
 const COLS = 11;
 const ROWS = 5;
@@ -80,6 +97,31 @@ const INVADER_POINTS = [30, 20, 10];
 const UFO_POINTS = [50, 100, 150, 300];
 const ALIEN_COLORS = [0x00ffff, 0xff00ff, 0x00ff88];
 
+const POWERUP_DROP_CHANCE = 0.12; // 12% per kill
+const POWERUP_FALL_SPEED = 1.5;
+const POWERUP_COLORS: Record<PowerUpType, number> = {
+  shield: 0x00aaff,
+  rapid: 0xffaa00,
+  multi: 0xff00ff,
+  bomb: 0xff4444,
+};
+const POWERUP_DURATIONS: Record<PowerUpType, number> = {
+  shield: 4,
+  rapid: 6,
+  multi: 6,
+  bomb: 0, // instant
+};
+
+// Wave color themes — cycle per wave
+const WAVE_THEMES = [
+  { name: 'Cyan', primary: 0x00ffff, secondary: 0xff00ff, ambient: 0x112244 },
+  { name: 'Emerald', primary: 0x00ff88, secondary: 0xffaa00, ambient: 0x0a2214 },
+  { name: 'Magenta', primary: 0xff00ff, secondary: 0x00ffff, ambient: 0x220a22 },
+  { name: 'Gold', primary: 0xffaa00, secondary: 0x00ff88, ambient: 0x221a0a },
+  { name: 'Crimson', primary: 0xff4466, secondary: 0x00ccff, ambient: 0x220a14 },
+  { name: 'Violet', primary: 0xaa44ff, secondary: 0x44ffaa, ambient: 0x140a22 },
+];
+
 type GameState = 'menu' | 'playing' | 'paused' | 'gameover' | 'results';
 type GameMode = 'classic' | 'speed' | 'zen' | 'challenge' | 'endless';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -88,6 +130,7 @@ export class GameSystem extends createSystem({}) {
   private ui!: UISystem;
   private audio!: AudioSystem;
   private effects!: EffectsSystem;
+  private env!: EnvironmentSystem;
 
   // Game state
   state: GameState = 'menu';
@@ -132,6 +175,13 @@ export class GameSystem extends createSystem({}) {
   private ufoTimer = 0;
   private ufoInterval = 15;
 
+  // Power-ups
+  private powerUps: PowerUp[] = [];
+  activePowerUp: PowerUpType | null = null;
+  powerUpTimer = 0;
+  private shieldFlashPhase = 0;
+  powerUpsCollected = 0;
+
   // Stats
   totalShots = 0;
   totalHits = 0;
@@ -144,6 +194,9 @@ export class GameSystem extends createSystem({}) {
   totalGamesWon = 0;
   winStreak = 0;
   bestStreak = 0;
+
+  // Leaderboard
+  leaderboard: LeaderboardEntry[] = [];
 
   // Achievements
   achievements: string[] = [];
@@ -174,11 +227,14 @@ export class GameSystem extends createSystem({}) {
   currentCombo = 0;
   private comboTimer = 0;
   private gameStartTime = 0;
+  private powerUpsThisGame = 0;
+  private bombsUsedThisGame = 0;
 
-  setRefs(refs: { ui: UISystem; audio: AudioSystem; effects: EffectsSystem }) {
+  setRefs(refs: { ui: UISystem; audio: AudioSystem; effects: EffectsSystem; env: EnvironmentSystem }) {
     this.ui = refs.ui;
     this.audio = refs.audio;
     this.effects = refs.effects;
+    this.env = refs.env;
   }
 
   init() {
@@ -204,6 +260,7 @@ export class GameSystem extends createSystem({}) {
       this.bestStreak = d.bestStreak || 0;
       this.winStreak = d.winStreak || 0;
       this.achievements = d.achievements || [];
+      this.leaderboard = d.leaderboard || [];
     } catch { /* ignore */ }
   }
 
@@ -221,8 +278,23 @@ export class GameSystem extends createSystem({}) {
         bestStreak: this.bestStreak,
         winStreak: this.winStreak,
         achievements: this.achievements,
+        leaderboard: this.leaderboard,
       }));
     } catch { /* ignore */ }
+  }
+
+  private addToLeaderboard() {
+    const entry: LeaderboardEntry = {
+      score: this.score,
+      wave: this.wavesCleared,
+      mode: this.mode,
+      date: new Date().toISOString().split('T')[0],
+    };
+    this.leaderboard.push(entry);
+    this.leaderboard.sort((a, b) => b.score - a.score);
+    if (this.leaderboard.length > 10) {
+      this.leaderboard = this.leaderboard.slice(0, 10);
+    }
   }
 
   private createPlayer() {
@@ -267,10 +339,28 @@ export class GameSystem extends createSystem({}) {
     this.playerX = 0;
     this.playerGroup.visible = true;
     this.playerGroup.position.x = 0;
+    this.activePowerUp = null;
+    this.powerUpTimer = 0;
+    this.powerUpsThisGame = 0;
+    this.bombsUsedThisGame = 0;
     this.gamesPlayed++;
+    this.clearPowerUps();
     this.spawnWave();
     this.createShields();
+    this.applyWaveTheme();
     this.audio?.playSound('start');
+  }
+
+  private applyWaveTheme() {
+    const themeIdx = (this.wave - 1) % WAVE_THEMES.length;
+    const theme = WAVE_THEMES[themeIdx];
+    this.env?.setWaveTheme(theme.primary, theme.secondary, theme.ambient);
+    this.effects?.setAccentColor(this.COLOR_SCHEMES[this.colorScheme].accent);
+  }
+
+  getWaveThemeName(): string {
+    const themeIdx = (this.wave - 1) % WAVE_THEMES.length;
+    return WAVE_THEMES[themeIdx].name;
   }
 
   private spawnWave() {
@@ -378,6 +468,13 @@ export class GameSystem extends createSystem({}) {
     this.enemyBullets = [];
   }
 
+  private clearPowerUps() {
+    for (const p of this.powerUps) {
+      if (p.active) this.scene.remove(p.mesh);
+    }
+    this.powerUps = [];
+  }
+
   pauseGame() {
     if (this.state === 'playing') {
       this.state = 'paused';
@@ -393,6 +490,9 @@ export class GameSystem extends createSystem({}) {
   endGame(won: boolean) {
     this.state = 'results';
     this.clearBullets();
+    this.clearPowerUps();
+    this.activePowerUp = null;
+    this.powerUpTimer = 0;
     if (this.ufo?.active) {
       this.ufo.active = false;
       this.ufo.mesh.visible = false;
@@ -411,6 +511,7 @@ export class GameSystem extends createSystem({}) {
     } else {
       this.winStreak = 0;
     }
+    this.addToLeaderboard();
     this.checkAchievements();
     this.savePersistence();
     this.audio?.playSound(won ? 'victory' : 'defeat');
@@ -419,6 +520,9 @@ export class GameSystem extends createSystem({}) {
   returnToMenu() {
     this.state = 'menu';
     this.clearBullets();
+    this.clearPowerUps();
+    this.activePowerUp = null;
+    this.powerUpTimer = 0;
     this.playerGroup.visible = false;
     while (this.invaderGroup.children.length > 0) {
       this.invaderGroup.remove(this.invaderGroup.children[0]);
@@ -432,19 +536,220 @@ export class GameSystem extends createSystem({}) {
       this.ufo.active = false;
       this.ufo.mesh.visible = false;
     }
+    // Reset environment to default theme
+    this.env?.setWaveTheme(0x00ffff, 0xff00ff, 0x112244);
+  }
+
+  // ========== POWER-UPS ==========
+  private tryDropPowerUp(pos: Vector3) {
+    if (Math.random() > POWERUP_DROP_CHANCE) return;
+
+    const types: PowerUpType[] = ['shield', 'rapid', 'multi', 'bomb'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const color = POWERUP_COLORS[type];
+
+    const group = new Group();
+
+    // Outer glow sphere
+    const glowGeo = new SphereGeometry(0.1, 8, 6);
+    const glowMat = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.3,
+      blending: AdditiveBlending,
+    });
+    const glow = new Mesh(glowGeo, glowMat);
+    group.add(glow);
+
+    // Inner icon shape
+    let iconMesh: Mesh;
+    if (type === 'shield') {
+      // Shield icon = flat diamond
+      const geo = new BoxGeometry(0.08, 0.1, 0.02);
+      const mat = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
+      iconMesh = new Mesh(geo, mat);
+      iconMesh.rotation.z = Math.PI / 4;
+    } else if (type === 'rapid') {
+      // Rapid = thin tall cylinder (lightning bolt vibe)
+      const geo = new CylinderGeometry(0.02, 0.04, 0.12, 6);
+      const mat = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
+      iconMesh = new Mesh(geo, mat);
+    } else if (type === 'multi') {
+      // Multi = three small spheres
+      const geo = new SphereGeometry(0.03, 6, 4);
+      const mat = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
+      iconMesh = new Mesh(geo, mat);
+      const s2 = new Mesh(geo.clone(), mat.clone());
+      s2.position.set(-0.05, 0, 0);
+      group.add(s2);
+      const s3 = new Mesh(geo.clone(), mat.clone());
+      s3.position.set(0.05, 0, 0);
+      group.add(s3);
+    } else {
+      // Bomb = box
+      const geo = new BoxGeometry(0.08, 0.08, 0.08);
+      const mat = new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
+      iconMesh = new Mesh(geo, mat);
+    }
+    group.add(iconMesh);
+
+    group.position.copy(pos);
+    this.scene.add(group);
+
+    this.powerUps.push({
+      mesh: group,
+      type,
+      vel: new Vector3(0, -POWERUP_FALL_SPEED, 0),
+      active: true,
+    });
+  }
+
+  private collectPowerUp(pu: PowerUp) {
+    pu.active = false;
+    this.scene.remove(pu.mesh);
+    this.powerUpsCollected++;
+    this.powerUpsThisGame++;
+
+    if (pu.type === 'bomb') {
+      // Instant: clear all enemy bullets + damage nearby invaders
+      this.activateBomb();
+    } else {
+      this.activePowerUp = pu.type;
+      this.powerUpTimer = POWERUP_DURATIONS[pu.type];
+      if (pu.type === 'rapid') {
+        this.playerFireRate = 0.1; // much faster
+      }
+    }
+
+    this.effects?.burst(pu.mesh.position.clone(), POWERUP_COLORS[pu.type], 15);
+    this.audio?.playSound('powerup');
+    this.ui?.showPowerUpNotify(pu.type);
+  }
+
+  private activateBomb() {
+    // Clear all enemy bullets
+    for (const b of this.enemyBullets) {
+      this.effects?.burst(b.mesh.position.clone(), 0xff4444, 4);
+      this.scene.remove(b.mesh);
+    }
+    this.enemyBullets = [];
+    this.bombsUsedThisGame++;
+
+    // Damage a few random alive invaders
+    const alive = this.invaders.filter(i => i.alive);
+    const damageCount = Math.min(5, alive.length);
+    for (let i = 0; i < damageCount; i++) {
+      const rIdx = Math.floor(Math.random() * alive.length);
+      const inv = alive[rIdx];
+      if (inv.alive) {
+        inv.alive = false;
+        this.aliensAlive--;
+        this.score += INVADER_POINTS[inv.type];
+        this.killsThisGame++;
+        this.totalKills++;
+        const worldPos = new Vector3();
+        inv.mesh.getWorldPosition(worldPos);
+        this.effects?.burst(worldPos, 0xff4444, 8);
+        this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
+        alive.splice(rIdx, 1);
+      }
+    }
+
+    // Big visual flash
+    this.effects?.shake(0.08, 0.4);
+    this.audio?.playSound('bomb');
+  }
+
+  private updatePowerUps(delta: number) {
+    // Fall active power-ups
+    for (let i = this.powerUps.length - 1; i >= 0; i--) {
+      const pu = this.powerUps[i];
+      if (!pu.active) {
+        this.powerUps.splice(i, 1);
+        continue;
+      }
+
+      pu.mesh.position.y += pu.vel.y * delta;
+      pu.mesh.rotation.y += delta * 2; // spin
+
+      // Off-screen
+      if (pu.mesh.position.y < -0.5) {
+        pu.active = false;
+        this.scene.remove(pu.mesh);
+        this.powerUps.splice(i, 1);
+        continue;
+      }
+
+      // Check player collection
+      const dx = pu.mesh.position.x - this.playerX;
+      const dy = pu.mesh.position.y - PLAYER_Y;
+      if (Math.abs(dx) < 0.3 && Math.abs(dy) < 0.25) {
+        this.collectPowerUp(pu);
+        this.powerUps.splice(i, 1);
+      }
+    }
+
+    // Tick active power-up timer
+    if (this.activePowerUp && this.powerUpTimer > 0) {
+      this.powerUpTimer -= delta;
+      if (this.powerUpTimer <= 0) {
+        this.deactivatePowerUp();
+      }
+    }
+
+    // Shield flash effect
+    if (this.activePowerUp === 'shield') {
+      this.shieldFlashPhase += delta * 6;
+      const flash = 0.3 + Math.sin(this.shieldFlashPhase) * 0.2;
+      const mat = this.playerMesh.material as MeshStandardMaterial;
+      mat.emissiveIntensity = 0.4 + flash;
+    }
+  }
+
+  private deactivatePowerUp() {
+    if (this.activePowerUp === 'rapid') {
+      this.playerFireRate = 0.3; // reset
+    }
+    this.activePowerUp = null;
+    this.powerUpTimer = 0;
+    // Reset player emissive
+    const mat = this.playerMesh.material as MeshStandardMaterial;
+    mat.emissiveIntensity = 0.4;
   }
 
   private firePlayerBullet() {
     if (this.playerFireCooldown > 0) return;
-    if (this.playerBullets.length >= 2) return; // max 2 on screen
 
-    const geo = new BoxGeometry(0.04, 0.18, 0.04);
+    const maxBullets = this.activePowerUp === 'multi' ? 6 : 2;
+    if (this.playerBullets.length >= maxBullets) return;
+
     const accent = this.COLOR_SCHEMES[this.colorScheme].accent;
-    const mat = new MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9 });
-    const mesh = new Mesh(geo, mat);
-    mesh.position.set(this.playerX, PLAYER_Y + 0.25, 0);
-    this.scene.add(mesh);
-    this.playerBullets.push({ mesh, vel: new Vector3(0, PLAYER_BULLET_SPEED, 0), isPlayer: true });
+
+    if (this.activePowerUp === 'multi') {
+      // Fire 3 bullets: center + left + right spread
+      const offsets = [0, -0.12, 0.12];
+      const angles = [0, -0.15, 0.15]; // slight spread angle
+      for (let b = 0; b < 3; b++) {
+        const geo = new BoxGeometry(0.04, 0.18, 0.04);
+        const mat = new MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.9 });
+        const mesh = new Mesh(geo, mat);
+        mesh.position.set(this.playerX + offsets[b], PLAYER_Y + 0.25, 0);
+        this.scene.add(mesh);
+        this.playerBullets.push({
+          mesh,
+          vel: new Vector3(Math.sin(angles[b]) * PLAYER_BULLET_SPEED, Math.cos(angles[b]) * PLAYER_BULLET_SPEED, 0),
+          isPlayer: true,
+        });
+      }
+    } else {
+      const geo = new BoxGeometry(0.04, 0.18, 0.04);
+      const mat = new MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9 });
+      const mesh = new Mesh(geo, mat);
+      mesh.position.set(this.playerX, PLAYER_Y + 0.25, 0);
+      this.scene.add(mesh);
+      this.playerBullets.push({ mesh, vel: new Vector3(0, PLAYER_BULLET_SPEED, 0), isPlayer: true });
+    }
+
     this.playerFireCooldown = this.playerFireRate;
     this.shotsFired++;
     this.totalShots++;
@@ -571,6 +876,9 @@ export class GameSystem extends createSystem({}) {
     // Update bullets
     this.updateBullets(delta);
 
+    // Update power-ups
+    this.updatePowerUps(delta);
+
     // Animate invaders
     this.animateInvaders(time);
 
@@ -689,6 +997,7 @@ export class GameSystem extends createSystem({}) {
     // Player bullets
     for (let i = this.playerBullets.length - 1; i >= 0; i--) {
       const b = this.playerBullets[i];
+      b.mesh.position.x += b.vel.x * delta;
       b.mesh.position.y += b.vel.y * delta;
 
       // Bullet trail particles (every few frames)
@@ -698,7 +1007,7 @@ export class GameSystem extends createSystem({}) {
       }
 
       // Off screen
-      if (b.mesh.position.y > 4.5) {
+      if (b.mesh.position.y > 4.5 || Math.abs(b.mesh.position.x) > 5) {
         this.scene.remove(b.mesh);
         this.playerBullets.splice(i, 1);
         continue;
@@ -745,13 +1054,15 @@ export class GameSystem extends createSystem({}) {
           if (this.currentCombo > this.maxCombo) this.maxCombo = this.currentCombo;
           this.effects?.burst(worldPos, ALIEN_COLORS[inv.type], 12);
           this.effects?.scorePopup(worldPos.clone(), ALIEN_COLORS[inv.type]);
-          // Death animation — scale up and fade out instead of instant hide
+          // Death animation
           this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
           const mat = inv.mesh.material as MeshStandardMaterial;
           mat.emissiveIntensity = 1.0;
           // Screen shake on kill
           this.effects?.shake(0.015, 0.1);
           this.audio?.playSound('hit');
+          // Try drop power-up
+          this.tryDropPowerUp(worldPos.clone());
           hit = true;
           break;
         }
@@ -777,7 +1088,8 @@ export class GameSystem extends createSystem({}) {
             this.invaderGroup.position.set(0, 0, 0);
             this.spawnWave();
             this.createShields();
-            this.clearBullets();
+            this.clearPowerUps();
+            this.applyWaveTheme();
           }
         }
         continue;
@@ -833,7 +1145,6 @@ export class GameSystem extends createSystem({}) {
           } else {
             const mat = block.mesh.material as MeshStandardMaterial;
             mat.opacity = block.health / 3;
-            // Damage tint — shift from green to yellow/red
             const dmgFrac = 1 - block.health / 3;
             const r = dmgFrac;
             const g = 1 - dmgFrac * 0.3;
@@ -854,7 +1165,14 @@ export class GameSystem extends createSystem({}) {
   }
 
   private playerHit() {
-    if (this.mode === 'zen') return; // zen = no damage
+    if (this.mode === 'zen') return;
+
+    // Shield power-up blocks damage
+    if (this.activePowerUp === 'shield') {
+      this.effects?.burst(this.playerGroup.position.clone(), 0x00aaff, 10);
+      this.audio?.playSound('shieldBlock');
+      return;
+    }
 
     this.lives--;
     this.effects?.bigExplosion(this.playerGroup.position.clone(), 0xff0000);
@@ -873,29 +1191,27 @@ export class GameSystem extends createSystem({}) {
       if (!inv.alive) continue;
       // Rotation sway
       inv.mesh.rotation.y = Math.sin(time * 2 + inv.col * 0.5) * 0.2;
-      // Pulsing glow — intensifies as fewer aliens remain
+      // Pulsing glow
       const ratio = this.aliensAlive / (ROWS * COLS);
-      const pulseSpeed = 2 + (1 - ratio) * 4; // faster pulse when fewer alive
+      const pulseSpeed = 2 + (1 - ratio) * 4;
       const pulseMin = 0.2 + (1 - ratio) * 0.2;
       const pulse = pulseMin + Math.sin(time * pulseSpeed + inv.row * 0.8 + inv.col * 0.3) * 0.15;
       const mat = inv.mesh.material as MeshStandardMaterial;
       mat.emissiveIntensity = pulse;
-      // Subtle scale breathing
       const breathe = 1.0 + Math.sin(time * 1.5 + inv.row + inv.col * 0.7) * 0.03;
       inv.mesh.scale.setScalar(breathe);
     }
 
-    // Process death animations
+    // Death animations
     for (let i = this.deathAnimations.length - 1; i >= 0; i--) {
       const da = this.deathAnimations[i];
-      da.timer -= 1 / 60; // approximate delta
+      da.timer -= 1 / 60;
       if (da.timer <= 0) {
         da.mesh.visible = false;
         da.mesh.scale.setScalar(1);
         this.deathAnimations.splice(i, 1);
       } else {
         const progress = 1 - da.timer / 0.25;
-        // Scale up and fade out
         da.mesh.scale.setScalar(1 + progress * 0.8);
         const mat = da.mesh.material as MeshStandardMaterial;
         mat.opacity = 1 - progress;
@@ -960,13 +1276,11 @@ export class GameSystem extends createSystem({}) {
     mat.color.setHex(accent);
     mat.emissive.setHex(accent);
     (this.playerEdge.material as LineBasicMaterial).color.setHex(accent);
-    // Update turret
     if (this.playerMesh.children[0]) {
       const turretMat = (this.playerMesh.children[0] as Mesh).material as MeshStandardMaterial;
       turretMat.color.setHex(accent);
       turretMat.emissive.setHex(accent);
     }
-    // Update effects accent
     this.effects?.setAccentColor(accent);
   }
 }

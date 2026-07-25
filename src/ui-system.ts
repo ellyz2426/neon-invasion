@@ -23,6 +23,7 @@ export class UISystem extends createSystem({
   settingsQ: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/settings.json')] },
   statsQ: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/stats.json')] },
   tutorialQ: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/tutorial.json')] },
+  lbQ: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/leaderboard.json')] },
 }) {
   private game!: GameSystem;
   private audio!: AudioSystem;
@@ -31,6 +32,7 @@ export class UISystem extends createSystem({
   private activePanel = 'menu';
   private achPage = 0;
   private notifyTimer = 0;
+  private powerUpNotifyTimer = 0;
 
   setRefs(refs: { game: GameSystem; audio: AudioSystem; panels: Record<string, any>; positions: Record<string, [number, number, number]> }) {
     this.game = refs.game;
@@ -73,6 +75,7 @@ export class UISystem extends createSystem({
       wire('btn-tutorial', () => this.showPanel('tutorial'));
       wire('btn-stats', () => { this.updateStats(); this.showPanel('stats'); });
       wire('btn-achievements', () => { this.updateAch(); this.showPanel('achpanel'); });
+      wire('btn-leaderboard', () => { this.updateLeaderboard(); this.showPanel('leaderboard'); });
       this.updateMenu();
     });
 
@@ -167,6 +170,15 @@ export class UISystem extends createSystem({
       const el = doc.getElementById('btn-tutorial-back') as UIKit.Text | undefined;
       el?.addEventListener('click', () => { this.showPanel('menu'); this.audio?.playSound('click'); });
     });
+
+    // Leaderboard
+    this.queries.lbQ.subscribe('qualify', (entity: Entity) => {
+      const doc = getDoc(entity);
+      if (!doc) return;
+      const el = doc.getElementById('btn-lb-back') as UIKit.Text | undefined;
+      el?.addEventListener('click', () => { this.showPanel('menu'); this.audio?.playSound('click'); });
+      this.updateLeaderboard();
+    });
   }
 
   private set(panel: string, id: string, text: string) {
@@ -189,6 +201,16 @@ export class UISystem extends createSystem({
       this.set('hud', 'combo-val', `x${this.game.currentCombo}`);
     } else {
       this.set('hud', 'combo-val', '');
+    }
+
+    // Power-up indicator
+    if (this.game.activePowerUp) {
+      const names: Record<string, string> = { shield: 'SHIELD', rapid: 'RAPID', multi: 'MULTI' };
+      const name = names[this.game.activePowerUp] || '';
+      const secs = Math.ceil(this.game.powerUpTimer);
+      this.set('hud', 'powerup-val', `${name} ${secs}s`);
+    } else {
+      this.set('hud', 'powerup-val', '');
     }
   }
 
@@ -250,16 +272,47 @@ export class UISystem extends createSystem({
     this.set('achpanel', 'ach-count', `${this.game.achievements.length}/${all.length}`);
   }
 
+  private updateLeaderboard() {
+    const lb = this.game.leaderboard;
+    for (let i = 0; i < 5; i++) {
+      if (i < lb.length) {
+        const entry = lb[i];
+        this.set('leaderboard', `score-${i}`, `${entry.score}`);
+        this.set('leaderboard', `info-${i}`, `W${entry.wave} ${entry.mode.toUpperCase()} ${entry.date}`);
+      } else {
+        this.set('leaderboard', `score-${i}`, '---');
+        this.set('leaderboard', `info-${i}`, '');
+      }
+    }
+  }
+
   showAchievement(name: string) {
     this.set('hud', 'ach-notify', `Achievement: ${name}!`);
     this.notifyTimer = 3;
     this.audio?.playSound('achievement');
   }
 
+  showPowerUpNotify(type: string) {
+    const names: Record<string, string> = {
+      shield: 'SHIELD ACTIVE!',
+      rapid: 'RAPID FIRE!',
+      multi: 'MULTI-SHOT!',
+      bomb: 'BOMB!',
+    };
+    this.set('hud', 'ach-notify', names[type] || 'POWER-UP!');
+    this.powerUpNotifyTimer = 2;
+  }
+
   update(delta: number) {
     if (this.notifyTimer > 0) {
       this.notifyTimer -= delta;
       if (this.notifyTimer <= 0) {
+        this.set('hud', 'ach-notify', '');
+      }
+    }
+    if (this.powerUpNotifyTimer > 0) {
+      this.powerUpNotifyTimer -= delta;
+      if (this.powerUpNotifyTimer <= 0 && this.notifyTimer <= 0) {
         this.set('hud', 'ach-notify', '');
       }
     }

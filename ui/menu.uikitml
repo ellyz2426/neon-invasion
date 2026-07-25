@@ -59,5 +59,6 @@
     <text class="btn" name="btn-tutorial">How to Play</text>
     <text class="btn" name="btn-stats">Statistics</text>
     <text class="btn" name="btn-achievements">Achievements</text>
+    <text class="btn" name="btn-leaderboard">Leaderboard</text>
   </container>
 </panel>
