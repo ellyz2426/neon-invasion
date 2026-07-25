@@ -1,15 +1,15 @@
 {
   "schemaVersion": 2,
   "workspaceRoot": "/home/hatch/workspace/neon-invasion",
-  "pid": 1458,
+  "pid": 12382,
   "command": "npm",
   "args": [
     "run",
     "dev:runtime"
   ],
-  "logPath": "/home/hatch/workspace/neon-invasion/.iwsdk/runtime/logs/dev-1784963741157.log",
+  "logPath": "/home/hatch/workspace/neon-invasion/.iwsdk/runtime/logs/dev-1784966516387.log",
   "scriptName": "dev:runtime",
   "port": 5173,
   "openBrowser": false,
-  "createdAt": "2026-07-25T07:15:49.503Z"
+  "createdAt": "2026-07-25T08:02:01.704Z"
 }

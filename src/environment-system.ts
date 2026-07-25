@@ -196,5 +196,16 @@ export class EnvironmentSystem extends createSystem({}) {
       const mat = this.ceilingLights[i].material as MeshBasicMaterial;
       mat.opacity = 0.3 + Math.sin(time * 0.5 + i * 1.5) * 0.1;
     }
+
+    // Subtle pillar trim pulsing
+    for (const pillar of this.pillars) {
+      for (let ci = 1; ci < pillar.children.length - 1; ci++) {
+        const child = pillar.children[ci] as Mesh;
+        if (child.material && 'emissiveIntensity' in child.material) {
+          (child.material as MeshStandardMaterial).emissiveIntensity =
+            0.4 + Math.sin(time * 0.8 + ci * 2) * 0.2;
+        }
+      }
+    }
   }
 }

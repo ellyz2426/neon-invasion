@@ -152,12 +152,16 @@ export class GameSystem extends createSystem({}) {
   // Color scheme
   colorScheme = 0;
   private readonly COLOR_SCHEMES = [
-    { name: 'Cyan', accent: 0x00ffff, secondary: 0xff00ff },
-    { name: 'Green', accent: 0x00ff88, secondary: 0xffaa00 },
-    { name: 'Magenta', accent: 0xff00ff, secondary: 0x00ffff },
-    { name: 'Gold', accent: 0xffaa00, secondary: 0x00ff88 },
+    { name: 'Cyan', accent: 0x00ffff, secondary: 0xff00ff, invTint: 0.0 },
+    { name: 'Green', accent: 0x00ff88, secondary: 0xffaa00, invTint: 0.3 },
+    { name: 'Magenta', accent: 0xff00ff, secondary: 0x00ffff, invTint: 0.6 },
+    { name: 'Gold', accent: 0xffaa00, secondary: 0x00ff88, invTint: 0.9 },
   ];
   soundEnabled = true;
+
+  // Invader animation
+  private invaderPulsePhase = 0;
+  private deathAnimations: { mesh: Mesh; timer: number; startScale: number }[] = [];
 
   // Per-game tracking
   private shotsFired = 0;
@@ -685,6 +689,12 @@ export class GameSystem extends createSystem({}) {
       const b = this.playerBullets[i];
       b.mesh.position.y += b.vel.y * delta;
 
+      // Bullet trail particles (every few frames)
+      if (Math.random() < 0.3) {
+        const accent = this.COLOR_SCHEMES[this.colorScheme].accent;
+        this.effects?.trail(b.mesh.position.clone(), accent, 1);
+      }
+
       // Off screen
       if (b.mesh.position.y > 4.5) {
         this.scene.remove(b.mesh);
@@ -703,7 +713,8 @@ export class GameSystem extends createSystem({}) {
           this.totalUFOs++;
           this.ufo.active = false;
           this.ufo.mesh.visible = false;
-          this.effects?.burst(this.ufo.mesh.position.clone(), 0xff8800, 15);
+          this.effects?.bigExplosion(this.ufo.mesh.position.clone(), 0xff8800);
+          this.effects?.shake(0.04, 0.2);
           this.audio?.playSound('ufoHit');
           this.scene.remove(b.mesh);
           this.playerBullets.splice(i, 1);
@@ -721,7 +732,6 @@ export class GameSystem extends createSystem({}) {
         const dy = b.mesh.position.y - worldPos.y;
         if (Math.abs(dx) < INVADER_SIZE * 0.5 && Math.abs(dy) < INVADER_SIZE * 0.5) {
           inv.alive = false;
-          inv.mesh.visible = false;
           this.aliensAlive--;
           this.score += INVADER_POINTS[inv.type];
           this.shotsHit++;
@@ -731,7 +741,13 @@ export class GameSystem extends createSystem({}) {
           this.currentCombo++;
           this.comboTimer = 2;
           if (this.currentCombo > this.maxCombo) this.maxCombo = this.currentCombo;
-          this.effects?.burst(worldPos, ALIEN_COLORS[inv.type], 10);
+          this.effects?.burst(worldPos, ALIEN_COLORS[inv.type], 12);
+          // Death animation — scale up and fade out instead of instant hide
+          this.deathAnimations.push({ mesh: inv.mesh, timer: 0.25, startScale: 1 });
+          const mat = inv.mesh.material as MeshStandardMaterial;
+          mat.emissiveIntensity = 1.0;
+          // Screen shake on kill
+          this.effects?.shake(0.015, 0.1);
           this.audio?.playSound('hit');
           hit = true;
           break;
@@ -747,6 +763,8 @@ export class GameSystem extends createSystem({}) {
           this.totalWaves++;
           this.wave++;
           this.audio?.playSound('waveClear');
+          this.effects?.shake(0.04, 0.3);
+          this.effects?.waveFlash(this.COLOR_SCHEMES[this.colorScheme].accent);
 
           if (this.mode === 'classic' && this.wave > 10) {
             this.endGame(true);
@@ -805,11 +823,19 @@ export class GameSystem extends createSystem({}) {
         const dy = b.mesh.position.y - by;
         if (Math.abs(dx) < 0.06 && Math.abs(dy) < 0.06) {
           block.health--;
+          const hitPos = new Vector3(bx, by, 0);
+          this.effects?.shieldSpark(hitPos);
           if (block.health <= 0) {
             block.mesh.visible = false;
           } else {
             const mat = block.mesh.material as MeshStandardMaterial;
             mat.opacity = block.health / 3;
+            // Damage tint — shift from green to yellow/red
+            const dmgFrac = 1 - block.health / 3;
+            const r = dmgFrac;
+            const g = 1 - dmgFrac * 0.3;
+            mat.color.setRGB(r, g, 0.26);
+            mat.emissive.setRGB(r, g, 0.26);
           }
           this.scene.remove(b.mesh);
           if (isPlayer) {
@@ -828,7 +854,8 @@ export class GameSystem extends createSystem({}) {
     if (this.mode === 'zen') return; // zen = no damage
 
     this.lives--;
-    this.effects?.burst(this.playerGroup.position.clone(), 0xff0000, 15);
+    this.effects?.bigExplosion(this.playerGroup.position.clone(), 0xff0000);
+    this.effects?.shake(0.06, 0.3);
     this.audio?.playSound('playerHit');
 
     if (this.lives <= 0) {
@@ -837,9 +864,39 @@ export class GameSystem extends createSystem({}) {
   }
 
   private animateInvaders(time: number) {
+    this.invaderPulsePhase += 0.03;
+
     for (const inv of this.invaders) {
       if (!inv.alive) continue;
+      // Rotation sway
       inv.mesh.rotation.y = Math.sin(time * 2 + inv.col * 0.5) * 0.2;
+      // Pulsing glow — intensifies as fewer aliens remain
+      const ratio = this.aliensAlive / (ROWS * COLS);
+      const pulseSpeed = 2 + (1 - ratio) * 4; // faster pulse when fewer alive
+      const pulseMin = 0.2 + (1 - ratio) * 0.2;
+      const pulse = pulseMin + Math.sin(time * pulseSpeed + inv.row * 0.8 + inv.col * 0.3) * 0.15;
+      const mat = inv.mesh.material as MeshStandardMaterial;
+      mat.emissiveIntensity = pulse;
+      // Subtle scale breathing
+      const breathe = 1.0 + Math.sin(time * 1.5 + inv.row + inv.col * 0.7) * 0.03;
+      inv.mesh.scale.setScalar(breathe);
+    }
+
+    // Process death animations
+    for (let i = this.deathAnimations.length - 1; i >= 0; i--) {
+      const da = this.deathAnimations[i];
+      da.timer -= 1 / 60; // approximate delta
+      if (da.timer <= 0) {
+        da.mesh.visible = false;
+        da.mesh.scale.setScalar(1);
+        this.deathAnimations.splice(i, 1);
+      } else {
+        const progress = 1 - da.timer / 0.25;
+        // Scale up and fade out
+        da.mesh.scale.setScalar(1 + progress * 0.8);
+        const mat = da.mesh.material as MeshStandardMaterial;
+        mat.opacity = 1 - progress;
+      }
     }
   }
 
@@ -906,5 +963,7 @@ export class GameSystem extends createSystem({}) {
       turretMat.color.setHex(accent);
       turretMat.emissive.setHex(accent);
     }
+    // Update effects accent
+    this.effects?.setAccentColor(accent);
   }
 }
